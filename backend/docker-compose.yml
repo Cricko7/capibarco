@@ -141,6 +141,23 @@ services:
       ]
     restart: "no"
 
+  migrate-user:
+    image: migrate/migrate:v4.18.3
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./migrations/user-service:/migrations:ro
+    command:
+      [
+        "-path",
+        "/migrations",
+        "-database",
+        "postgres://user:user@postgres:5432/user?sslmode=disable",
+        "up"
+      ]
+    restart: "no"
+
   kafka-init:
     image: redpandadata/redpanda:v24.3.3
     depends_on:
@@ -172,7 +189,9 @@ services:
         auth.password_reset_requested \
         auth.password_reset_completed \
         auth.role_assigned \
-        auth.permission_checked; do
+        auth.permission_checked \
+        user.profile_updated \
+        user.review_created; do
         rpk topic create "$$topic" --brokers redpanda:29092 --partitions 3 --replicas 1 || true
       done
 
@@ -295,6 +314,23 @@ services:
     ports:
       - "18086:8080"
       - "19094:9090"
+
+  user-service:
+    build:
+      context: ./user-service
+    depends_on:
+      migrate-user:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+    environment:
+      USER_DB_DSN: postgres://user:user@postgres:5432/user?sslmode=disable
+      USER_KAFKA_BROKERS: redpanda:29092
+      USER_GRPC_ADDR: 0.0.0.0:9090
+      USER_HTTP_ADDR: 0.0.0.0:8080
+    ports:
+      - "18087:8080"
+      - "19095:9090"
 
 volumes:
   postgres-data:
