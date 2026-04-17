@@ -124,6 +124,23 @@ services:
       ]
     restart: "no"
 
+  migrate-matching:
+    image: migrate/migrate:v4.18.3
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./migrations/matching-service:/migrations:ro
+    command:
+      [
+        "-path",
+        "/migrations",
+        "-database",
+        "postgres://matching:matching@postgres:5432/matching?sslmode=disable",
+        "up"
+      ]
+    restart: "no"
+
   kafka-init:
     image: redpandadata/redpanda:v24.3.3
     depends_on:
@@ -137,6 +154,9 @@ services:
         animal.profile_archived \
         animal.status_changed \
         matching.swipe_recorded \
+        matching.match_created \
+        matching.match_archived \
+        chat.conversation_created \
         billing.donation_succeeded \
         billing.donation_failed \
         billing.boost_activated \
@@ -253,6 +273,28 @@ services:
     ports:
       - "18084:8080"
       - "18085:8081"
+
+  matching-service:
+    build:
+      context: ./matching-service
+    depends_on:
+      chat-service:
+        condition: service_started
+      migrate-matching:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+    environment:
+      MATCHING_DB_DSN: postgres://matching:matching@postgres:5432/matching?sslmode=disable
+      MATCHING_KAFKA_BROKERS: redpanda:29092
+      MATCHING_KAFKA_CLIENT_ID: matching-service
+      MATCHING_KAFKA_GROUP_ID: matching-service
+      MATCHING_CHAT_ADDRESS: chat-service:9090
+      MATCHING_GRPC_ADDR: 0.0.0.0:9090
+      MATCHING_HTTP_ADDR: 0.0.0.0:8080
+    ports:
+      - "18086:8080"
+      - "19094:9090"
 
 volumes:
   postgres-data:

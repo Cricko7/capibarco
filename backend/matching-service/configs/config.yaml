@@ -1,0 +1,34 @@
+service:
+  name: matching-service
+  environment: local
+  log_level: info
+
+http:
+  addr: 0.0.0.0:8080
+  read_timeout: 5s
+  write_timeout: 10s
+  idle_timeout: 60s
+  cors_origins:
+    - http://localhost:3000
+
+grpc:
+  addr: 0.0.0.0:9090
+
+db:
+  dsn: postgres://matching:matching@localhost:15432/matching?sslmode=disable
+  max_conns: 25
+  max_conn_lifetime: 30m
+
+kafka:
+  brokers:
+    - localhost:19093
+  client_id: matching-service
+  group_id: matching-service
+  outbox_interval: 1s
+  outbox_batch: 50
+
+chat:
+  address: localhost:19092
+  timeout: 2s
+  retries: 3
+

@@ -1,0 +1,8 @@
+bin/
+coverage.out
+*.test
+*.log
+.env
+.env.*
+!.env.example
+

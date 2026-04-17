@@ -1,0 +1,56 @@
+openapi: 3.1.0
+info:
+  title: PetMatch Matching Service Operations API
+  version: 0.1.0
+servers:
+  - url: http://localhost:18086
+paths:
+  /healthz:
+    get:
+      summary: Liveness probe
+      operationId: healthz
+      responses:
+        "200":
+          description: Service process is alive.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+  /readyz:
+    get:
+      summary: Readiness probe
+      operationId: readyz
+      responses:
+        "200":
+          description: Service dependencies are ready.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+        "503":
+          description: Service dependencies are not ready.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+  /metrics:
+    get:
+      summary: Prometheus metrics
+      operationId: metrics
+      responses:
+        "200":
+          description: Prometheus text exposition.
+          content:
+            text/plain:
+              schema:
+                type: string
+components:
+  schemas:
+    StatusResponse:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+

@@ -1,0 +1,65 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: matching
+      POSTGRES_PASSWORD: matching
+      POSTGRES_DB: matching
+    ports:
+      - "15432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U matching -d matching"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redpanda:
+    image: redpandadata/redpanda:v24.3.3
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp
+      - "1"
+      - --memory
+      - 512M
+      - --reserve-memory
+      - 0M
+      - --node-id
+      - "0"
+      - --check=false
+      - --kafka-addr
+      - internal://0.0.0.0:29092,external://0.0.0.0:9092
+      - --advertise-kafka-addr
+      - internal://redpanda:29092,external://localhost:19093
+    ports:
+      - "19093:9092"
+
+  migrate:
+    image: migrate/migrate:v4.18.3
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./migrations:/migrations:ro
+    command: ["-path", "/migrations", "-database", "postgres://matching:matching@postgres:5432/matching?sslmode=disable", "up"]
+    restart: "no"
+
+  matching-service:
+    build:
+      context: .
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redpanda:
+        condition: service_started
+    environment:
+      MATCHING_DB_DSN: postgres://matching:matching@postgres:5432/matching?sslmode=disable
+      MATCHING_KAFKA_BROKERS: redpanda:29092
+      MATCHING_CHAT_ADDRESS: host.docker.internal:19092
+      MATCHING_GRPC_ADDR: 0.0.0.0:9090
+      MATCHING_HTTP_ADDR: 0.0.0.0:8080
+    ports:
+      - "18086:8080"
+      - "19094:9090"
+

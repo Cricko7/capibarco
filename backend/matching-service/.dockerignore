@@ -1,0 +1,10 @@
+.git
+bin
+coverage.out
+*.test
+*.log
+.env
+.env.*
+Dockerfile
+docker-compose.yml
+
