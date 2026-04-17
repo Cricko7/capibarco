@@ -1,0 +1,24 @@
+app:
+  name: chat-service
+  environment: local
+  version: 0.1.0
+grpc:
+  address: 0.0.0.0:9090
+http:
+  address: 0.0.0.0:8080
+  read_timeout: 5s
+  write_timeout: 10s
+postgres:
+  dsn: postgres://chat:chat@localhost:5432/chat?sslmode=disable
+  max_open_conns: 20
+  max_idle_conns: 5
+  conn_max_lifetime: 30m
+auth:
+  address: localhost:50051
+  validate_token_method: petmatch.auth.v1.AuthService/ValidateToken
+resilience:
+  retry_max_elapsed_time: 2s
+  circuit_breaker_timeout: 10s
+  circuit_breaker_max_requests: 3
+observability:
+  log_level: info

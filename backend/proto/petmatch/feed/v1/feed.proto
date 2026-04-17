@@ -1,0 +1,112 @@
+syntax = "proto3";
+
+package petmatch.feed.v1;
+
+import "google/protobuf/timestamp.proto";
+import "petmatch/animal/v1/animal.proto";
+import "petmatch/common/v1/common.proto";
+
+option go_package = "github.com/petmatch/petmatch/gen/go/petmatch/feed/v1;feedv1";
+
+// FeedService owns swipe-feed composition, ranking, and feed serving telemetry.
+service FeedService {
+  rpc GetFeed(GetFeedRequest) returns (GetFeedResponse);
+  rpc StreamFeed(GetFeedRequest) returns (stream FeedCard);
+  rpc GetFeedCard(GetFeedCardRequest) returns (GetFeedCardResponse);
+  rpc RecordCardOpen(RecordCardOpenRequest) returns (RecordCardOpenResponse);
+  rpc ExplainRanking(ExplainRankingRequest) returns (ExplainRankingResponse);
+}
+
+enum FeedSurface {
+  FEED_SURFACE_UNSPECIFIED = 0;
+  FEED_SURFACE_MAIN = 1;
+  FEED_SURFACE_SEARCH = 2;
+  FEED_SURFACE_OWNER_PROFILE = 3;
+}
+
+message FeedFilter {
+  petmatch.animal.v1.AnimalFilter animal_filter = 1;
+  bool use_paid_advanced_filters = 2;
+  repeated string excluded_animal_ids = 3;
+}
+
+message FeedCard {
+  string feed_card_id = 1;
+  string feed_session_id = 2;
+  petmatch.animal.v1.AnimalProfile animal = 3;
+  string owner_profile_id = 4;
+  string owner_display_name = 5;
+  double owner_average_rating = 6;
+  bool boosted = 7;
+  repeated string ranking_reasons = 8;
+  google.protobuf.Timestamp served_at = 9;
+}
+
+message GetFeedRequest {
+  petmatch.common.v1.Principal principal = 1;
+  FeedSurface surface = 2;
+  FeedFilter filter = 3;
+  petmatch.common.v1.PageRequest page = 4;
+}
+
+message GetFeedResponse {
+  repeated FeedCard cards = 1;
+  petmatch.common.v1.PageResponse page = 2;
+  string feed_session_id = 3;
+}
+
+message GetFeedCardRequest {
+  string feed_card_id = 1;
+}
+
+message GetFeedCardResponse {
+  FeedCard card = 1;
+}
+
+message RecordCardOpenRequest {
+  string feed_card_id = 1;
+  string animal_id = 2;
+  string feed_session_id = 3;
+  petmatch.common.v1.Principal principal = 4;
+  string idempotency_key = 5;
+}
+
+message RecordCardOpenResponse {
+  string card_open_id = 1;
+  google.protobuf.Timestamp opened_at = 2;
+}
+
+message ExplainRankingRequest {
+  string feed_card_id = 1;
+  petmatch.common.v1.Principal principal = 2;
+}
+
+message ExplainRankingResponse {
+  repeated string ranking_reasons = 1;
+  map<string, double> score_components = 2;
+}
+
+message FeedCardServedEvent {
+  petmatch.common.v1.EventEnvelope envelope = 1;
+  string feed_card_id = 2;
+  string feed_session_id = 3;
+  string animal_id = 4;
+  optional string actor_id = 5;
+  bool boosted = 6;
+  FeedSurface surface = 7;
+}
+
+message FeedCardOpenedEvent {
+  petmatch.common.v1.EventEnvelope envelope = 1;
+  string card_open_id = 2;
+  string feed_card_id = 3;
+  string animal_id = 4;
+  optional string actor_id = 5;
+}
+
+message FeedFiltersAppliedEvent {
+  petmatch.common.v1.EventEnvelope envelope = 1;
+  optional string actor_id = 2;
+  FeedFilter filter = 3;
+  bool paid_filters_used = 4;
+}

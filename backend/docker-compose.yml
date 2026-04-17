@@ -1,0 +1,258 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "15432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres/initdb.d:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redpanda:
+    image: redpandadata/redpanda:v24.3.3
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp
+      - "1"
+      - --memory
+      - 512M
+      - --reserve-memory
+      - 0M
+      - --node-id
+      - "0"
+      - --check=false
+      - --kafka-addr
+      - internal://0.0.0.0:29092,external://0.0.0.0:9092
+      - --advertise-kafka-addr
+      - internal://redpanda:29092,external://localhost:19093
+    ports:
+      - "19093:9092"
+      - "19644:9644"
+
+  migrate-auth:
+    image: migrate/migrate:v4.18.3
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./migrations/auth-service:/migrations:ro
+    command:
+      [
+        "-path",
+        "/migrations",
+        "-database",
+        "postgres://auth:auth@postgres:5432/auth?sslmode=disable",
+        "up"
+      ]
+    restart: "no"
+
+  migrate-animal:
+    image: migrate/migrate:v4.18.3
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./migrations/animal-service:/migrations:ro
+    command:
+      [
+        "-path",
+        "/migrations",
+        "-database",
+        "postgres://animal:animal@postgres:5432/animal?sslmode=disable",
+        "up"
+      ]
+    restart: "no"
+
+  migrate-billing:
+    image: migrate/migrate:v4.18.3
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./migrations/billing-service:/migrations:ro
+    command:
+      [
+        "-path",
+        "/migrations",
+        "-database",
+        "postgres://billing:billing@postgres:5432/billing?sslmode=disable",
+        "up"
+      ]
+    restart: "no"
+
+  migrate-chat:
+    image: migrate/migrate:v4.18.3
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./migrations/chat-service:/migrations:ro
+    command:
+      [
+        "-path",
+        "/migrations",
+        "-database",
+        "postgres://chat:chat@postgres:5432/chat?sslmode=disable",
+        "up"
+      ]
+    restart: "no"
+
+  migrate-feed:
+    image: migrate/migrate:v4.18.3
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./migrations/feed-service:/migrations:ro
+    command:
+      [
+        "-path",
+        "/migrations",
+        "-database",
+        "postgres://feed:feed@postgres:5432/feed?sslmode=disable",
+        "up"
+      ]
+    restart: "no"
+
+  kafka-init:
+    image: redpandadata/redpanda:v24.3.3
+    depends_on:
+      redpanda:
+        condition: service_started
+    entrypoint: ["/bin/sh", "-ec"]
+    command: |
+      sleep 5
+      for topic in \
+        animal.profile_published \
+        animal.profile_archived \
+        animal.status_changed \
+        matching.swipe_recorded \
+        billing.donation_succeeded \
+        billing.donation_failed \
+        billing.boost_activated \
+        billing.boost_expired \
+        billing.entitlement_granted \
+        billing.payment_failed \
+        analytics.animal_stats_aggregated \
+        auth.user_registered \
+        auth.user_login_succeeded \
+        auth.user_login_failed \
+        auth.token_refreshed \
+        auth.logout \
+        auth.password_reset_requested \
+        auth.password_reset_completed \
+        auth.role_assigned \
+        auth.permission_checked; do
+        rpk topic create "$$topic" --brokers redpanda:29092 --partitions 3 --replicas 1 || true
+      done
+
+  auth-service:
+    build:
+      context: ./auth-service
+    depends_on:
+      migrate-auth:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgres://auth:auth@postgres:5432/auth?sslmode=disable
+      GRPC_ADDR: :50051
+      HTTP_ADDR: :8080
+      KAFKA_ENABLED: "true"
+      KAFKA_BROKERS: redpanda:29092
+      KAFKA_CLIENT_ID: auth-service
+      KAFKA_ALLOW_AUTO_TOPIC_CREATION: "true"
+      JWT_ISSUER: authsvc
+      JWT_AUDIENCE: internal-services
+      ACCESS_TTL: 15m
+      REFRESH_TTL: 720h
+      RESET_TTL: 15m
+    ports:
+      - "18080:8080"
+      - "15051:50051"
+
+  animal-service:
+    build:
+      context: ./animal-service
+    depends_on:
+      migrate-animal:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+    environment:
+      ANIMAL_POSTGRES_URL: postgres://animal:animal@postgres:5432/animal?sslmode=disable
+      ANIMAL_KAFKA_ENABLED: "true"
+      ANIMAL_KAFKA_BROKERS: redpanda:29092
+      ANIMAL_GRPC_ADDR: 0.0.0.0:9090
+      ANIMAL_HTTP_ADDR: 0.0.0.0:8080
+    ports:
+      - "18081:8080"
+      - "19090:9090"
+
+  billing-service:
+    build:
+      context: ./billing-service
+    depends_on:
+      migrate-billing:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+    environment:
+      BILLING_POSTGRES_DSN: postgres://billing:billing@postgres:5432/billing?sslmode=disable
+      BILLING_HTTP_ADDR: :8080
+      BILLING_GRPC_ADDR: :9090
+      BILLING_PAYMENT_MOCK_SECRET_KEY: local-development-secret
+      BILLING_EVENTS_PUBLISHER: kafka
+      BILLING_EVENTS_BROKERS: redpanda:29092
+    ports:
+      - "18082:8080"
+      - "19091:9090"
+
+  chat-service:
+    build:
+      context: ./chat-service
+    depends_on:
+      auth-service:
+        condition: service_started
+      migrate-chat:
+        condition: service_completed_successfully
+    environment:
+      CHAT_POSTGRES_DSN: postgres://chat:chat@postgres:5432/chat?sslmode=disable
+      CHAT_AUTH_ADDRESS: auth-service:50051
+      CHAT_GRPC_ADDRESS: 0.0.0.0:9090
+      CHAT_HTTP_ADDRESS: 0.0.0.0:8080
+    ports:
+      - "18083:8080"
+      - "19092:9090"
+
+  feed-service:
+    build:
+      context: ./feed-service
+    depends_on:
+      migrate-feed:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+    environment:
+      FEED_STORAGE: postgres
+      FEED_POSTGRES_DSN: postgres://feed:feed@postgres:5432/feed?sslmode=disable
+      FEED_KAFKA_ENABLED: "true"
+      FEED_KAFKA_BROKERS: redpanda:29092
+      FEED_GRPC_ADDR: :8081
+      FEED_HTTP_ADDR: :8080
+    ports:
+      - "18084:8080"
+      - "18085:8081"
+
+volumes:
+  postgres-data:

@@ -1,0 +1,10 @@
+.git
+**/.cache
+**/.gocache
+**/.gomodcache
+**/.bufcache
+**/bin
+**/*.exe
+**/*.rar
+**/tmp
+**/.DS_Store

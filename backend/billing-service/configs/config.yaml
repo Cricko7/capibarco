@@ -1,0 +1,30 @@
+app:
+  name: billing-service
+  env: local
+  version: 0.1.0
+  log_level: info
+  development: true
+grpc:
+  addr: ":9090"
+  shutdown_timeout: 10s
+http:
+  addr: ":8080"
+  shutdown_timeout: 10s
+postgres:
+  dsn: postgres://billing:billing@localhost:5432/billing?sslmode=disable
+  max_conns: 10
+  min_conns: 1
+  health_timeout: 2s
+payment:
+  provider: mock
+  mock_base_url: https://mock-payments.petmatch.local/pay
+  mock_secret_key: local-development-secret
+events:
+  publisher: kafka
+  brokers:
+    - localhost:29092
+  client_id: billing-service
+  schema_version: 1.0.0
+  batch_timeout: 10ms
+  write_timeout: 10s
+  required_acks: -1

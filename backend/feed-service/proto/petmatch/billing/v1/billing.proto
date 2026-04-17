@@ -1,0 +1,213 @@
+syntax = "proto3";
+
+package petmatch.billing.v1;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+import "petmatch/common/v1/common.proto";
+
+option go_package = "github.com/petmatch/petmatch/gen/go/petmatch/billing/v1;billingv1";
+
+// BillingService owns donations, boosts, paid filters, analytics access, and ledger entries.
+service BillingService {
+  rpc CreateDonationIntent(CreateDonationIntentRequest) returns (CreateDonationIntentResponse);
+  rpc ConfirmDonation(ConfirmDonationRequest) returns (ConfirmDonationResponse);
+  rpc GetDonation(GetDonationRequest) returns (GetDonationResponse);
+  rpc ListDonations(ListDonationsRequest) returns (ListDonationsResponse);
+  rpc CreateBoost(CreateBoostRequest) returns (CreateBoostResponse);
+  rpc CancelBoost(CancelBoostRequest) returns (CancelBoostResponse);
+  rpc PurchaseEntitlement(PurchaseEntitlementRequest) returns (PurchaseEntitlementResponse);
+  rpc GetEntitlements(GetEntitlementsRequest) returns (GetEntitlementsResponse);
+  rpc ListLedgerEntries(ListLedgerEntriesRequest) returns (ListLedgerEntriesResponse);
+}
+
+enum PaymentStatus {
+  PAYMENT_STATUS_UNSPECIFIED = 0;
+  PAYMENT_STATUS_PENDING = 1;
+  PAYMENT_STATUS_SUCCEEDED = 2;
+  PAYMENT_STATUS_FAILED = 3;
+  PAYMENT_STATUS_CANCELLED = 4;
+  PAYMENT_STATUS_REFUNDED = 5;
+}
+
+enum DonationTargetType {
+  DONATION_TARGET_TYPE_UNSPECIFIED = 0;
+  DONATION_TARGET_TYPE_SHELTER = 1;
+  DONATION_TARGET_TYPE_ANIMAL = 2;
+}
+
+enum EntitlementType {
+  ENTITLEMENT_TYPE_UNSPECIFIED = 0;
+  ENTITLEMENT_TYPE_ADVANCED_FILTERS = 1;
+  ENTITLEMENT_TYPE_EXTENDED_ANIMAL_STATS = 2;
+  ENTITLEMENT_TYPE_ANIMAL_BOOST = 3;
+}
+
+message Donation {
+  string donation_id = 1;
+  string payer_profile_id = 2;
+  DonationTargetType target_type = 3;
+  string target_id = 4;
+  petmatch.common.v1.MoneyAmount amount = 5;
+  PaymentStatus status = 6;
+  string provider = 7;
+  string provider_payment_id = 8;
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+}
+
+message Boost {
+  string boost_id = 1;
+  string animal_id = 2;
+  string owner_profile_id = 3;
+  string donation_id = 4;
+  google.protobuf.Timestamp starts_at = 5;
+  google.protobuf.Timestamp expires_at = 6;
+  bool active = 7;
+}
+
+message Entitlement {
+  string entitlement_id = 1;
+  string owner_profile_id = 2;
+  EntitlementType type = 3;
+  optional string resource_id = 4;
+  google.protobuf.Timestamp starts_at = 5;
+  google.protobuf.Timestamp expires_at = 6;
+  bool active = 7;
+}
+
+message LedgerEntry {
+  string ledger_entry_id = 1;
+  string profile_id = 2;
+  petmatch.common.v1.MoneyAmount amount = 3;
+  string reason = 4;
+  string reference_id = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+
+message CreateDonationIntentRequest {
+  string payer_profile_id = 1;
+  DonationTargetType target_type = 2;
+  string target_id = 3;
+  petmatch.common.v1.MoneyAmount amount = 4;
+  string provider = 5;
+  string idempotency_key = 6;
+}
+
+message CreateDonationIntentResponse {
+  Donation donation = 1;
+  string payment_url = 2;
+  string client_secret = 3;
+}
+
+message ConfirmDonationRequest {
+  string donation_id = 1;
+  string provider_payment_id = 2;
+  string idempotency_key = 3;
+}
+
+message ConfirmDonationResponse {
+  Donation donation = 1;
+}
+
+message GetDonationRequest {
+  string donation_id = 1;
+}
+
+message GetDonationResponse {
+  Donation donation = 1;
+}
+
+message ListDonationsRequest {
+  string profile_id = 1;
+  optional DonationTargetType target_type = 2;
+  petmatch.common.v1.PageRequest page = 3;
+}
+
+message ListDonationsResponse {
+  repeated Donation donations = 1;
+  petmatch.common.v1.PageResponse page = 2;
+}
+
+message CreateBoostRequest {
+  string animal_id = 1;
+  string owner_profile_id = 2;
+  string donation_id = 3;
+  google.protobuf.Duration duration = 4;
+  string idempotency_key = 5;
+}
+
+message CreateBoostResponse {
+  Boost boost = 1;
+}
+
+message CancelBoostRequest {
+  string boost_id = 1;
+  string reason = 2;
+}
+
+message CancelBoostResponse {
+  Boost boost = 1;
+}
+
+message PurchaseEntitlementRequest {
+  string owner_profile_id = 1;
+  EntitlementType type = 2;
+  optional string resource_id = 3;
+  petmatch.common.v1.MoneyAmount amount = 4;
+  google.protobuf.Duration duration = 5;
+  string idempotency_key = 6;
+}
+
+message PurchaseEntitlementResponse {
+  Entitlement entitlement = 1;
+  Donation donation = 2;
+}
+
+message GetEntitlementsRequest {
+  string owner_profile_id = 1;
+  repeated EntitlementType types = 2;
+  optional string resource_id = 3;
+}
+
+message GetEntitlementsResponse {
+  repeated Entitlement entitlements = 1;
+}
+
+message ListLedgerEntriesRequest {
+  string profile_id = 1;
+  petmatch.common.v1.PageRequest page = 2;
+}
+
+message ListLedgerEntriesResponse {
+  repeated LedgerEntry entries = 1;
+  petmatch.common.v1.PageResponse page = 2;
+}
+
+message DonationSucceededEvent {
+  petmatch.common.v1.EventEnvelope envelope = 1;
+  Donation donation = 2;
+}
+
+message DonationFailedEvent {
+  petmatch.common.v1.EventEnvelope envelope = 1;
+  Donation donation = 2;
+  string failure_reason = 3;
+}
+
+message BoostActivatedEvent {
+  petmatch.common.v1.EventEnvelope envelope = 1;
+  Boost boost = 2;
+}
+
+message EntitlementGrantedEvent {
+  petmatch.common.v1.EventEnvelope envelope = 1;
+  Entitlement entitlement = 2;
+}
+
+message PaymentFailedEvent {
+  petmatch.common.v1.EventEnvelope envelope = 1;
+  string provider = 2;
+  string provider_payment_id = 3;
+  string reason = 4;
+}

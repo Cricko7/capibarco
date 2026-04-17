@@ -1,0 +1,8 @@
+.cache
+bin
+.git
+.gitignore
+docker-compose.yml
+coverage.out
+*.test
+*.exe

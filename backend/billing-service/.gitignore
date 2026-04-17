@@ -1,0 +1,9 @@
+.gocache/
+.gomodcache/
+.bufcache/
+bin/
+dist/
+coverage.out
+*.test
+*.exe
+.env

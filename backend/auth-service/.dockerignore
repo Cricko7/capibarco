@@ -1,0 +1,6 @@
+.git
+.gocache
+.gomodcache
+.gotelemetry
+tmp
+dist

@@ -1,0 +1,6 @@
+.git
+bin
+coverage.out
+tmp
+Dockerfile
+docker-compose.yml

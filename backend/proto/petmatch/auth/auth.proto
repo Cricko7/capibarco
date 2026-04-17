@@ -1,0 +1,98 @@
+syntax = "proto3";
+
+package auth.v1;
+
+option go_package = "github.com/hackathon/authsvc/gen/auth/v1;authv1";
+
+service AuthService {
+  rpc Register(RegisterRequest) returns (AuthResponse);
+  rpc Login(LoginRequest) returns (AuthResponse);
+  rpc RefreshToken(RefreshTokenRequest) returns (AuthResponse);
+  rpc ForgotPassword(ForgotPasswordRequest) returns (EmptyResponse);
+  rpc ResetPassword(ResetPasswordRequest) returns (EmptyResponse);
+  rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
+  rpc GetUserInfo(GetUserInfoRequest) returns (GetUserInfoResponse);
+  rpc Authorize(AuthorizeRequest) returns (AuthorizeResponse);
+}
+
+message RegisterRequest {
+  string tenant_id = 1;
+  string email = 2;
+  string password = 3;
+  string ip = 4;
+}
+
+message LoginRequest {
+  string tenant_id = 1;
+  string email = 2;
+  string password = 3;
+  string ip = 4;
+}
+
+message RefreshTokenRequest {
+  string refresh_token = 1;
+}
+
+message ForgotPasswordRequest {
+  string tenant_id = 1;
+  string email = 2;
+  string ip = 3;
+}
+
+message ResetPasswordRequest {
+  string tenant_id = 1;
+  string reset_token = 2;
+  string new_password = 3;
+  string ip = 4;
+}
+
+message ValidateTokenRequest {
+  string access_token = 1;
+}
+
+message GetUserInfoRequest {
+  string access_token = 1;
+}
+
+message AuthorizeRequest {
+  string access_token = 1;
+  string permission = 2;
+}
+
+message AuthResponse {
+  User user = 1;
+  string access_token = 2;
+  string refresh_token = 3;
+  string expires_at = 4;
+}
+
+message EmptyResponse {}
+
+message ValidateTokenResponse {
+  bool valid = 1;
+  string subject = 2;
+  string tenant_id = 3;
+  string email = 4;
+  repeated string roles = 5;
+  repeated string permissions = 6;
+  string expires_at = 7;
+  string token_id = 8;
+}
+
+message GetUserInfoResponse {
+  User user = 1;
+}
+
+message AuthorizeResponse {
+  bool allowed = 1;
+  ValidateTokenResponse claims = 2;
+}
+
+message User {
+  string id = 1;
+  string tenant_id = 2;
+  string email = 3;
+  bool is_active = 4;
+  string created_at = 5;
+  string updated_at = 6;
+}

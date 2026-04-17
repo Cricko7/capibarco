@@ -1,0 +1,29 @@
+service:
+  name: animal-service
+  environment: local
+  version: 0.1.0
+
+grpc:
+  addr: "0.0.0.0:9090"
+
+http:
+  addr: "0.0.0.0:8080"
+  allowed_origins:
+    - "http://localhost:3000"
+    - "http://localhost:8080"
+
+postgres:
+  url: "postgres://animal:animal@localhost:5432/animal?sslmode=disable"
+  max_conns: 10
+
+kafka:
+  enabled: false
+  brokers:
+    - "localhost:9092"
+  group_id: animal-service
+
+logging:
+  level: info
+
+shutdown:
+  timeout: 15s

@@ -1,0 +1,71 @@
+openapi: "3.1.0"
+info:
+  title: Billing Service Operations API
+  version: "0.1.0"
+  description: Operational HTTP endpoints for billing-service. Business APIs are exposed over gRPC using petmatch.billing.v1.BillingService.
+servers:
+  - url: http://localhost:8080
+paths:
+  /healthz:
+    get:
+      operationId: getHealth
+      tags: [Operations]
+      summary: Liveness probe
+      responses:
+        "200":
+          description: Service process is alive.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Status"
+  /readyz:
+    get:
+      operationId: getReadiness
+      tags: [Operations]
+      summary: Readiness probe
+      responses:
+        "200":
+          description: Service dependencies are reachable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Status"
+        "503":
+          description: At least one required dependency is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Status"
+  /metrics:
+    get:
+      operationId: getMetrics
+      tags: [Operations]
+      summary: Prometheus metrics
+      responses:
+        "200":
+          description: Prometheus text exposition format.
+          content:
+            text/plain:
+              schema:
+                type: string
+  /openapi.yaml:
+    get:
+      operationId: getOpenAPI
+      tags: [Operations]
+      summary: OpenAPI document
+      responses:
+        "200":
+          description: OpenAPI 3.1 YAML.
+          content:
+            application/yaml:
+              schema:
+                type: string
+components:
+  schemas:
+    Status:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          examples: [ok, ready, not_ready]

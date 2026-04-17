@@ -1,0 +1,135 @@
+syntax = "proto3";
+
+package petmatch.matching.v1;
+
+import "google/protobuf/timestamp.proto";
+import "petmatch/common/v1/common.proto";
+
+option go_package = "github.com/petmatch/petmatch/gen/go/petmatch/matching/v1;matchingv1";
+
+// MatchingService owns one-sided animal swipes and immediate chat matches.
+service MatchingService {
+  rpc RecordSwipe(RecordSwipeRequest) returns (RecordSwipeResponse);
+  rpc GetSwipe(GetSwipeRequest) returns (GetSwipeResponse);
+  rpc ListSwipes(ListSwipesRequest) returns (ListSwipesResponse);
+  rpc GetMatch(GetMatchRequest) returns (GetMatchResponse);
+  rpc ListMatches(ListMatchesRequest) returns (ListMatchesResponse);
+  rpc WatchMatches(WatchMatchesRequest) returns (stream MatchStreamEvent);
+}
+
+enum SwipeDirection {
+  SWIPE_DIRECTION_UNSPECIFIED = 0;
+  SWIPE_DIRECTION_LEFT = 1;
+  SWIPE_DIRECTION_RIGHT = 2;
+}
+
+enum MatchStatus {
+  MATCH_STATUS_UNSPECIFIED = 0;
+  MATCH_STATUS_ACTIVE = 1;
+  MATCH_STATUS_ARCHIVED = 2;
+  MATCH_STATUS_BLOCKED = 3;
+}
+
+message Swipe {
+  string swipe_id = 1;
+  string actor_id = 2;
+  bool actor_is_guest = 3;
+  string animal_id = 4;
+  string owner_profile_id = 5;
+  SwipeDirection direction = 6;
+  optional string feed_card_id = 7;
+  optional string feed_session_id = 8;
+  google.protobuf.Timestamp swiped_at = 9;
+}
+
+message Match {
+  string match_id = 1;
+  string animal_id = 2;
+  string adopter_profile_id = 3;
+  string owner_profile_id = 4;
+  string conversation_id = 5;
+  MatchStatus status = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+}
+
+message RecordSwipeRequest {
+  petmatch.common.v1.Principal principal = 1;
+  string animal_id = 2;
+  string owner_profile_id = 3;
+  SwipeDirection direction = 4;
+  optional string feed_card_id = 5;
+  optional string feed_session_id = 6;
+  string idempotency_key = 7;
+}
+
+message RecordSwipeResponse {
+  Swipe swipe = 1;
+  Match match = 2;
+  bool chat_created = 3;
+  optional string conversation_id = 4;
+}
+
+message GetSwipeRequest {
+  string swipe_id = 1;
+}
+
+message GetSwipeResponse {
+  Swipe swipe = 1;
+}
+
+message ListSwipesRequest {
+  string actor_id = 1;
+  repeated SwipeDirection directions = 2;
+  petmatch.common.v1.PageRequest page = 3;
+}
+
+message ListSwipesResponse {
+  repeated Swipe swipes = 1;
+  petmatch.common.v1.PageResponse page = 2;
+}
+
+message GetMatchRequest {
+  string match_id = 1;
+}
+
+message GetMatchResponse {
+  Match match = 1;
+}
+
+message ListMatchesRequest {
+  string participant_profile_id = 1;
+  repeated MatchStatus statuses = 2;
+  petmatch.common.v1.PageRequest page = 3;
+}
+
+message ListMatchesResponse {
+  repeated Match matches = 1;
+  petmatch.common.v1.PageResponse page = 2;
+}
+
+message WatchMatchesRequest {
+  string participant_profile_id = 1;
+}
+
+message MatchStreamEvent {
+  petmatch.common.v1.EventEnvelope envelope = 1;
+  Match match = 2;
+}
+
+message SwipeRecordedEvent {
+  petmatch.common.v1.EventEnvelope envelope = 1;
+  Swipe swipe = 2;
+}
+
+message MatchCreatedEvent {
+  petmatch.common.v1.EventEnvelope envelope = 1;
+  Match match = 2;
+  Swipe swipe = 3;
+}
+
+message MatchArchivedEvent {
+  petmatch.common.v1.EventEnvelope envelope = 1;
+  string match_id = 2;
+  string reason = 3;
+}

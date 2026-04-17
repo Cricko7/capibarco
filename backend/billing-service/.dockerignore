@@ -1,0 +1,9 @@
+.gocache
+.gomodcache
+.bufcache
+.git
+bin
+dist
+coverage.out
+*.test
+docker-compose.yml

@@ -1,0 +1,223 @@
+syntax = "proto3";
+
+package petmatch.animal.v1;
+
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+import "petmatch/common/v1/common.proto";
+
+option go_package = "github.com/petmatch/petmatch/gen/go/petmatch/animal/v1;animalv1";
+
+// AnimalService owns animal profiles, photos, availability, and ownership.
+service AnimalService {
+  rpc CreateAnimal(CreateAnimalRequest) returns (CreateAnimalResponse);
+  rpc GetAnimal(GetAnimalRequest) returns (GetAnimalResponse);
+  rpc BatchGetAnimals(BatchGetAnimalsRequest) returns (BatchGetAnimalsResponse);
+  rpc SearchAnimals(SearchAnimalsRequest) returns (SearchAnimalsResponse);
+  rpc UpdateAnimal(UpdateAnimalRequest) returns (UpdateAnimalResponse);
+  rpc PublishAnimal(PublishAnimalRequest) returns (PublishAnimalResponse);
+  rpc ArchiveAnimal(ArchiveAnimalRequest) returns (ArchiveAnimalResponse);
+  rpc AddAnimalPhoto(AddAnimalPhotoRequest) returns (AddAnimalPhotoResponse);
+  rpc RemoveAnimalPhoto(RemoveAnimalPhotoRequest) returns (RemoveAnimalPhotoResponse);
+  rpc ListOwnerAnimals(ListOwnerAnimalsRequest) returns (ListOwnerAnimalsResponse);
+}
+
+enum Species {
+  SPECIES_UNSPECIFIED = 0;
+  SPECIES_DOG = 1;
+  SPECIES_CAT = 2;
+  SPECIES_BIRD = 3;
+  SPECIES_RABBIT = 4;
+  SPECIES_RODENT = 5;
+  SPECIES_REPTILE = 6;
+  SPECIES_OTHER = 7;
+}
+
+enum AnimalSex {
+  ANIMAL_SEX_UNSPECIFIED = 0;
+  ANIMAL_SEX_MALE = 1;
+  ANIMAL_SEX_FEMALE = 2;
+  ANIMAL_SEX_UNKNOWN = 3;
+}
+
+enum AnimalSize {
+  ANIMAL_SIZE_UNSPECIFIED = 0;
+  ANIMAL_SIZE_SMALL = 1;
+  ANIMAL_SIZE_MEDIUM = 2;
+  ANIMAL_SIZE_LARGE = 3;
+  ANIMAL_SIZE_EXTRA_LARGE = 4;
+}
+
+enum AnimalStatus {
+  ANIMAL_STATUS_UNSPECIFIED = 0;
+  ANIMAL_STATUS_DRAFT = 1;
+  ANIMAL_STATUS_AVAILABLE = 2;
+  ANIMAL_STATUS_RESERVED = 3;
+  ANIMAL_STATUS_ADOPTED = 4;
+  ANIMAL_STATUS_ARCHIVED = 5;
+}
+
+message AnimalProfile {
+  string animal_id = 1;
+  string owner_profile_id = 2;
+  petmatch.common.v1.OwnerType owner_type = 3;
+  string name = 4;
+  Species species = 5;
+  string breed = 6;
+  AnimalSex sex = 7;
+  AnimalSize size = 8;
+  optional int32 age_months = 9;
+  string description = 10;
+  repeated string traits = 11;
+  repeated string medical_notes = 12;
+  bool vaccinated = 13;
+  bool sterilized = 14;
+  AnimalStatus status = 15;
+  petmatch.common.v1.Address location = 16;
+  repeated petmatch.common.v1.Photo photos = 17;
+  petmatch.common.v1.Visibility visibility = 18;
+  bool boosted = 19;
+  google.protobuf.Timestamp boost_expires_at = 20;
+  petmatch.common.v1.AuditMetadata audit = 21;
+}
+
+message AnimalFilter {
+  repeated Species species = 1;
+  repeated string breeds = 2;
+  repeated AnimalSex sexes = 3;
+  repeated AnimalSize sizes = 4;
+  optional int32 min_age_months = 5;
+  optional int32 max_age_months = 6;
+  optional string city = 7;
+  petmatch.common.v1.GeoPoint near = 8;
+  optional int32 radius_km = 9;
+  repeated AnimalStatus statuses = 10;
+  repeated string traits = 11;
+  optional bool vaccinated = 12;
+  optional bool sterilized = 13;
+  optional bool boosted_only = 14;
+  optional string owner_profile_id = 15;
+}
+
+message CreateAnimalRequest {
+  string owner_profile_id = 1;
+  petmatch.common.v1.OwnerType owner_type = 2;
+  AnimalProfile animal = 3;
+  string idempotency_key = 4;
+}
+
+message CreateAnimalResponse {
+  AnimalProfile animal = 1;
+}
+
+message GetAnimalRequest {
+  string animal_id = 1;
+}
+
+message GetAnimalResponse {
+  AnimalProfile animal = 1;
+}
+
+message BatchGetAnimalsRequest {
+  repeated string animal_ids = 1;
+}
+
+message BatchGetAnimalsResponse {
+  repeated AnimalProfile animals = 1;
+}
+
+message SearchAnimalsRequest {
+  AnimalFilter filter = 1;
+  petmatch.common.v1.PageRequest page = 2;
+}
+
+message SearchAnimalsResponse {
+  repeated AnimalProfile animals = 1;
+  petmatch.common.v1.PageResponse page = 2;
+}
+
+message UpdateAnimalRequest {
+  string animal_id = 1;
+  AnimalProfile animal = 2;
+  google.protobuf.FieldMask update_mask = 3;
+}
+
+message UpdateAnimalResponse {
+  AnimalProfile animal = 1;
+}
+
+message PublishAnimalRequest {
+  string animal_id = 1;
+}
+
+message PublishAnimalResponse {
+  AnimalProfile animal = 1;
+}
+
+message ArchiveAnimalRequest {
+  string animal_id = 1;
+  string reason = 2;
+}
+
+message ArchiveAnimalResponse {
+  AnimalProfile animal = 1;
+}
+
+message AddAnimalPhotoRequest {
+  string animal_id = 1;
+  petmatch.common.v1.Photo photo = 2;
+  string idempotency_key = 3;
+}
+
+message AddAnimalPhotoResponse {
+  AnimalProfile animal = 1;
+}
+
+message RemoveAnimalPhotoRequest {
+  string animal_id = 1;
+  string photo_id = 2;
+}
+
+message RemoveAnimalPhotoResponse {
+  AnimalProfile animal = 1;
+}
+
+message ListOwnerAnimalsRequest {
+  string owner_profile_id = 1;
+  repeated AnimalStatus statuses = 2;
+  petmatch.common.v1.PageRequest page = 3;
+}
+
+message ListOwnerAnimalsResponse {
+  repeated AnimalProfile animals = 1;
+  petmatch.common.v1.PageResponse page = 2;
+}
+
+message AnimalProfileCreatedEvent {
+  petmatch.common.v1.EventEnvelope envelope = 1;
+  AnimalProfile animal = 2;
+}
+
+message AnimalProfileUpdatedEvent {
+  petmatch.common.v1.EventEnvelope envelope = 1;
+  AnimalProfile animal = 2;
+}
+
+message AnimalPublishedEvent {
+  petmatch.common.v1.EventEnvelope envelope = 1;
+  AnimalProfile animal = 2;
+}
+
+message AnimalStatusChangedEvent {
+  petmatch.common.v1.EventEnvelope envelope = 1;
+  string animal_id = 2;
+  AnimalStatus old_status = 3;
+  AnimalStatus new_status = 4;
+  string reason = 5;
+}
+
+message AnimalPhotoAddedEvent {
+  petmatch.common.v1.EventEnvelope envelope = 1;
+  string animal_id = 2;
+  petmatch.common.v1.Photo photo = 3;
+}

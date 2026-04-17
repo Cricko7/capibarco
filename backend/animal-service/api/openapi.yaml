@@ -1,0 +1,76 @@
+openapi: 3.1.0
+info:
+  title: Animal Service Operations API
+  version: 0.1.0
+  description: Operational HTTP endpoints for the animal-service. Business APIs are exposed through gRPC petmatch.animal.v1.AnimalService.
+servers:
+  - url: http://localhost:8080
+paths:
+  /healthz:
+    get:
+      summary: Liveness check
+      operationId: getHealthz
+      responses:
+        "200":
+          description: Process is alive.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+  /readyz:
+    get:
+      summary: Readiness check
+      operationId: getReadyz
+      responses:
+        "200":
+          description: Service dependencies are ready.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "503":
+          description: At least one required dependency is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /metrics:
+    get:
+      summary: Prometheus metrics
+      operationId: getMetrics
+      responses:
+        "200":
+          description: Prometheus exposition format.
+          content:
+            text/plain:
+              schema:
+                type: string
+  /openapi.yaml:
+    get:
+      summary: OpenAPI document
+      operationId: getOpenAPI
+      responses:
+        "200":
+          description: OpenAPI YAML.
+          content:
+            application/yaml:
+              schema:
+                type: string
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          examples: [ok, ready]
+    ErrorResponse:
+      type: object
+      required: [status, error]
+      properties:
+        status:
+          type: string
+          examples: [not_ready]
+        error:
+          type: string

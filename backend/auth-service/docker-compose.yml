@@ -1,0 +1,66 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: auth
+      POSTGRES_PASSWORD: auth
+      POSTGRES_DB: auth
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U auth -d auth"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  kafka:
+    image: redpandadata/redpanda:v24.3.3
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp
+      - "1"
+      - --memory
+      - 512M
+      - --reserve-memory
+      - 0M
+      - --node-id
+      - "0"
+      - --check=false
+      - --kafka-addr
+      - internal://0.0.0.0:29092,external://0.0.0.0:9092
+      - --advertise-kafka-addr
+      - internal://kafka:29092,external://localhost:9092
+    ports:
+      - "9092:9092"
+      - "9644:9644"
+
+  authsvc:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    environment:
+      DATABASE_URL: postgres://auth:auth@postgres:5432/auth?sslmode=disable
+      GRPC_ADDR: :50051
+      HTTP_ADDR: :8080
+      KAFKA_ENABLED: "true"
+      KAFKA_BROKERS: kafka:29092
+      KAFKA_CLIENT_ID: auth-service
+      KAFKA_ALLOW_AUTO_TOPIC_CREATION: "true"
+      JWT_ISSUER: authsvc
+      JWT_AUDIENCE: internal-services
+      ACCESS_TTL: 15m
+      REFRESH_TTL: 720h
+      RESET_TTL: 15m
+    ports:
+      - "50051:50051"
+      - "8080:8080"
+
+volumes:
+  postgres_data:

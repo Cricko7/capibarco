@@ -1,0 +1,30 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: chat
+      POSTGRES_USER: chat
+      POSTGRES_PASSWORD: chat
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chat -d chat"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  chat-service:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      CHAT_POSTGRES_DSN: postgres://chat:chat@postgres:5432/chat?sslmode=disable
+    ports:
+      - "8080:8080"
+      - "9090:9090"
+
+volumes:
+  postgres-data:
