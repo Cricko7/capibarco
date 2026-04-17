@@ -1,0 +1,33 @@
+service:
+  name: user-service
+  environment: local
+  log_level: info
+  version: 0.1.0
+
+http:
+  addr: 0.0.0.0:8080
+  read_timeout: 5s
+  write_timeout: 10s
+  idle_timeout: 60s
+  cors_origins:
+    - http://localhost:3000
+
+grpc:
+  addr: 0.0.0.0:9090
+  rate_limit_per_sec: 100
+  rate_limit_burst: 200
+  request_timeout: 3s
+
+db:
+  dsn: postgres://user:user@localhost:5432/user?sslmode=disable
+  max_conns: 25
+  max_conn_lifetime: 30m
+
+kafka:
+  enabled: true
+  brokers: [localhost:19093]
+  client_id: user-service
+  topic_prefix: user
+  retry_count: 3
+  retry_backoff: 200ms
+  breaker_fail_threshold: 5

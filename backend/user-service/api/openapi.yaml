@@ -1,0 +1,25 @@
+openapi: 3.0.3
+info:
+  title: user-service ops API
+  version: 0.1.0
+paths:
+  /healthz:
+    get:
+      summary: Liveness probe
+      responses:
+        '200':
+          description: OK
+  /readyz:
+    get:
+      summary: Readiness probe
+      responses:
+        '200':
+          description: Ready
+        '503':
+          description: Not ready
+  /metrics:
+    get:
+      summary: Prometheus metrics
+      responses:
+        '200':
+          description: Metrics

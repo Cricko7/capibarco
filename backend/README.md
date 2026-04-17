@@ -33,6 +33,7 @@ Host ports:
 - Billing HTTP: `18082`, gRPC: `19091`
 - Chat HTTP: `18083`, gRPC: `19092`
 - Feed HTTP: `18084`, gRPC: `18085`
+- User HTTP: `18087`, gRPC: `19095`
 - PostgreSQL: `15432`
 - Redpanda Kafka API: `19093`
 

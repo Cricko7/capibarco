@@ -15,3 +15,6 @@ CREATE DATABASE feed OWNER feed;
 
 CREATE USER matching WITH PASSWORD 'matching';
 CREATE DATABASE matching OWNER matching;
+
+CREATE USER "user" WITH PASSWORD 'user';
+CREATE DATABASE "user" OWNER "user";
