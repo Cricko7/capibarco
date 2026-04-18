@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+package analytics.v1;
+
+option go_package = "github.com/petmatch/petmatch/internal/delivery/grpc/pb;pb";
+
+service AnalyticsService {
+  rpc GetMetrics(GetMetricsRequest) returns (GetMetricsResponse);
+  rpc GetExtendedStats(GetExtendedStatsRequest) returns (GetExtendedStatsResponse);
+  rpc GetRankingFeedback(GetRankingFeedbackRequest) returns (GetRankingFeedbackResponse);
+}
+
+message GetMetricsRequest {
+  string profile_id = 1;
+  string from_rfc3339 = 2;
+  string to_rfc3339 = 3;
+  string bucket = 4;
+}
+
+message MetricCounter {
+  string event_type = 1;
+  int64 value = 2;
+}
+
+message ProfileMetric {
+  string profile_id = 1;
+  string bucket_rfc3339 = 2;
+  string bucket_size = 3;
+  repeated MetricCounter counters = 4;
+}
+
+message GetMetricsResponse {
+  repeated ProfileMetric items = 1;
+}
+
+message GetExtendedStatsRequest {
+  string profile_id = 1;
+  string role = 2;
+  string from_rfc3339 = 3;
+  string to_rfc3339 = 4;
+}
+
+message GetExtendedStatsResponse {
+  string profile_id = 1;
+  int64 views = 2;
+  int64 impressions = 3;
+  double ctr = 4;
+  int64 card_opens = 5;
+  int64 chat_starts = 6;
+  int64 donations = 7;
+  int64 boosts = 8;
+  int64 profile_changes = 9;
+}
+
+message GetRankingFeedbackRequest {
+  string from_rfc3339 = 1;
+  string to_rfc3339 = 2;
+  int32 limit = 3;
+}
+
+message RankingFeedback {
+  string profile_id = 1;
+  string bucket_rfc3339 = 2;
+  double ctr = 3;
+  double swipe_right_rate = 4;
+  double engagement = 5;
+}
+
+message GetRankingFeedbackResponse {
+  repeated RankingFeedback items = 1;
+}
