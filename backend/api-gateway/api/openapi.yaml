@@ -159,6 +159,111 @@ paths:
         - { name: bucket, in: query, schema: { type: integer } }
       responses:
         "200": { description: Animal statistics from analytics-service }
+  /v1/profiles:
+    get:
+      tags: [Users]
+      operationId: searchProfiles
+      parameters:
+        - { name: profile_type, in: query, schema: { type: integer }, description: Repeatable profile type filter }
+        - { name: city, in: query, schema: { type: string } }
+        - { name: min_average_rating, in: query, schema: { type: number, format: double } }
+        - { name: query, in: query, schema: { type: string } }
+        - { name: include_suspended, in: query, schema: { type: boolean, default: false } }
+        - { name: page_size, in: query, schema: { type: integer, default: 20, maximum: 50 } }
+        - { name: page_token, in: query, schema: { type: string } }
+      responses:
+        "200":
+          description: Profiles page
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SearchProfilesResponse" }
+  /v1/profiles/{profile_id}:
+    get:
+      tags: [Users]
+      operationId: getProfile
+      parameters:
+        - { name: profile_id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GetProfileResponse" }
+    patch:
+      tags: [Users]
+      operationId: updateProfile
+      parameters:
+        - { name: profile_id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateProfileGatewayRequest" }
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UpdateProfileResponse" }
+  /v1/profiles/{profile_id}/reviews:
+    get:
+      tags: [Users]
+      operationId: listReviews
+      parameters:
+        - { name: profile_id, in: path, required: true, schema: { type: string } }
+        - { name: page_size, in: query, schema: { type: integer, default: 20, maximum: 50 } }
+        - { name: page_token, in: query, schema: { type: string } }
+      responses:
+        "200":
+          description: Reviews page
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ListReviewsResponse" }
+    post:
+      tags: [Users]
+      operationId: createReview
+      parameters:
+        - { name: profile_id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateReviewRequest" }
+      responses:
+        "201":
+          description: Review created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CreateReviewResponse" }
+  /v1/profiles/{profile_id}/reputation:
+    get:
+      tags: [Users]
+      operationId: getReputationSummary
+      parameters:
+        - { name: profile_id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Reputation summary
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GetReputationSummaryResponse" }
+  /v1/reviews/{review_id}:
+    patch:
+      tags: [Users]
+      operationId: updateReview
+      parameters:
+        - { name: review_id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateReviewGatewayRequest" }
+      responses:
+        "200":
+          description: Updated review
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UpdateReviewResponse" }
   /v1/chat/conversations:
     get:
       tags: [Chat]
@@ -332,6 +437,115 @@ components:
         token: { type: string }
         platform: { type: string, enum: [ios, android, web] }
         locale: { type: string }
+    PageResponse:
+      type: object
+      properties:
+        next_page_token: { type: string }
+    AuditMetadata:
+      type: object
+      properties:
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    Address:
+      type: object
+      properties:
+        country_code: { type: string }
+        region: { type: string }
+        city: { type: string }
+        district: { type: string }
+        address_line: { type: string }
+        postal_code: { type: string }
+        latitude: { type: number, format: double }
+        longitude: { type: number, format: double }
+    ReputationSummary:
+      type: object
+      properties:
+        profile_id: { type: string }
+        average_rating: { type: number, format: double }
+        reviews_count: { type: integer }
+        completed_adoptions_count: { type: integer }
+        updated_at: { type: string, format: date-time }
+    UserProfile:
+      type: object
+      properties:
+        profile_id: { type: string }
+        auth_user_id: { type: string }
+        profile_type: { type: integer, enum: [0, 1, 2, 3] }
+        display_name: { type: string }
+        bio: { type: string }
+        avatar_url: { type: string }
+        address: { $ref: "#/components/schemas/Address" }
+        visibility: { type: integer }
+        reputation: { $ref: "#/components/schemas/ReputationSummary" }
+        audit: { $ref: "#/components/schemas/AuditMetadata" }
+    Review:
+      type: object
+      properties:
+        review_id: { type: string }
+        target_profile_id: { type: string }
+        author_profile_id: { type: string }
+        rating: { type: integer, minimum: 1, maximum: 5 }
+        text: { type: string }
+        match_id: { type: string }
+        visibility: { type: integer }
+        audit: { $ref: "#/components/schemas/AuditMetadata" }
+    GetProfileResponse:
+      type: object
+      properties:
+        profile: { $ref: "#/components/schemas/UserProfile" }
+    SearchProfilesResponse:
+      type: object
+      properties:
+        profiles:
+          type: array
+          items: { $ref: "#/components/schemas/UserProfile" }
+        page: { $ref: "#/components/schemas/PageResponse" }
+    UpdateProfileGatewayRequest:
+      type: object
+      required: [profile]
+      properties:
+        profile: { $ref: "#/components/schemas/UserProfile" }
+        update_mask:
+          type: array
+          items: { type: string }
+    UpdateProfileResponse:
+      type: object
+      properties:
+        profile: { $ref: "#/components/schemas/UserProfile" }
+    CreateReviewRequest:
+      type: object
+      required: [rating, text]
+      properties:
+        rating: { type: integer, minimum: 1, maximum: 5 }
+        text: { type: string }
+        match_id: { type: string }
+    CreateReviewResponse:
+      type: object
+      properties:
+        review: { $ref: "#/components/schemas/Review" }
+    ListReviewsResponse:
+      type: object
+      properties:
+        reviews:
+          type: array
+          items: { $ref: "#/components/schemas/Review" }
+        page: { $ref: "#/components/schemas/PageResponse" }
+    UpdateReviewGatewayRequest:
+      type: object
+      required: [review]
+      properties:
+        review: { $ref: "#/components/schemas/Review" }
+        update_mask:
+          type: array
+          items: { type: string }
+    UpdateReviewResponse:
+      type: object
+      properties:
+        review: { $ref: "#/components/schemas/Review" }
+    GetReputationSummaryResponse:
+      type: object
+      properties:
+        reputation: { $ref: "#/components/schemas/ReputationSummary" }
     Problem:
       type: object
       required: [type, title, status]

@@ -7,12 +7,16 @@
 ```text
 capibarco/
   backend/
+    api-gateway/
     auth-service/
     animal-service/
     billing-service/
     chat-service/
     feed-service/
     matching-service/
+    user-service/
+    notification-service/
+    analytics-service/
     proto/
     migrations/
     docker/
@@ -32,6 +36,9 @@ capibarco/
 - `backend/chat-service` - сервис чатов.
 - `backend/feed-service` - сервис ленты рекомендаций.
 - `backend/matching-service` - сервис свайпов, матчей и создания чатов по right swipe.
+- `backend/user-service` - сервис публичных профилей, отзывов и репутации.
+- `backend/notification-service` - сервис push-уведомлений и inbox-уведомлений.
+- `backend/analytics-service` - сервис аналитики и агрегированных метрик.
 - `backend/api-gateway` - мобильный REST/WebSocket фасад поверх внутренних gRPC-сервисов.
 
 Общие ресурсы:
@@ -65,7 +72,9 @@ docker compose up --build
 | Chat service | `18083` | `19092` |
 | Feed service | `18084` | `18085` |
 | Matching service | `18086` | `19094` |
+| User service | `18087` | `19095` |
 | API Gateway | `18088` | - |
+| Notification service | `18089` | `19097` |
 | PostgreSQL | - | `15432` |
 | Redis | - | `16379` |
 | MinIO | `19098` | `19099` |
@@ -82,7 +91,7 @@ cd backend/auth-service
 go test ./...
 ```
 
-То же самое можно выполнить для `animal-service`, `billing-service`, `chat-service`, `feed-service` и `matching-service`.
+То же самое можно выполнить для `animal-service`, `billing-service`, `chat-service`, `feed-service`, `matching-service`, `user-service`, `notification-service`, `analytics-service` и `api-gateway`.
 
 ## Документация
 
