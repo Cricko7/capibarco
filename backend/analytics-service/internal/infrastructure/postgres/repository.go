@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
@@ -86,8 +87,17 @@ func (r *Repository) MetricsByBucket(ctx context.Context, profileID string, from
 		return nil, fmt.Errorf("iterate metric rows: %w", err)
 	}
 
+	buckets := make([]time.Time, 0, len(group))
+	for bucketAt := range group {
+		buckets = append(buckets, bucketAt)
+	}
+	sort.Slice(buckets, func(i, j int) bool {
+		return buckets[i].Before(buckets[j])
+	})
+
 	result := make([]domain.ProfileMetric, 0, len(group))
-	for bucketAt, counters := range group {
+	for _, bucketAt := range buckets {
+		counters := group[bucketAt]
 		result = append(result, domain.ProfileMetric{ProfileID: profileID, Bucket: bucketAt, Size: bucket, Counters: counters})
 	}
 	return result, nil

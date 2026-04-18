@@ -10,5 +10,6 @@ func TestLoad_Defaults(t *testing.T) {
 	cfg, err := Load("")
 	require.NoError(t, err)
 	require.Equal(t, "analytics-service", cfg.App.Name)
+	require.NotEmpty(t, cfg.GRPC.Addr)
 	require.NotEmpty(t, cfg.Postgres.DSN)
 }

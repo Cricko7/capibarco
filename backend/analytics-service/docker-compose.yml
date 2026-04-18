@@ -48,9 +48,10 @@ services:
         condition: service_started
     ports:
       - "18088:18088"
-      - "19088:19088"
+      - "19096:9090"
     environment:
       ANALYTICS_POSTGRES_DSN: postgres://analytics:analytics@analytics-postgres:5432/analytics?sslmode=disable
+      ANALYTICS_GRPC_ADDR: :9090
       ANALYTICS_KAFKA_BROKERS_0: kafka:9092
       ANALYTICS_APP_ENV: local
 

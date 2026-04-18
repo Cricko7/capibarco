@@ -2,6 +2,7 @@ package authgrpc
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	authv1 "github.com/petmatch/chat-service/gen/go/petmatch/auth"
@@ -9,7 +10,18 @@ import (
 	"github.com/petmatch/chat-service/internal/infrastructure/breaker"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/encoding"
 )
+
+func init() {
+	encoding.RegisterCodec(jsonCodec{})
+}
+
+type jsonCodec struct{}
+
+func (jsonCodec) Marshal(v any) ([]byte, error)   { return json.Marshal(v) }
+func (jsonCodec) Unmarshal(b []byte, v any) error { return json.Unmarshal(b, v) }
+func (jsonCodec) Name() string                    { return "json" }
 
 // Client validates tokens through auth-service.
 type Client struct {
@@ -47,7 +59,11 @@ func (c *Client) ValidateToken(ctx context.Context, accessToken string) (chat.Pr
 	var response *authv1.ValidateTokenResponse
 	err := c.executor.Do(ctx, func(callCtx context.Context) error {
 		var callErr error
-		response, callErr = c.client.ValidateToken(callCtx, &authv1.ValidateTokenRequest{AccessToken: accessToken})
+		response, callErr = c.client.ValidateToken(
+			callCtx,
+			&authv1.ValidateTokenRequest{AccessToken: accessToken},
+			grpc.ForceCodec(jsonCodec{}),
+		)
 		return callErr
 	})
 	if err != nil {

@@ -1,6 +1,6 @@
 APP=analytics-service
 
-.PHONY: build run test lint tidy migrate-up migrate-down docker-build
+.PHONY: build run test lint tidy generate migrate-up migrate-down docker-build
 
 build:
 	go build -o bin/$(APP) ./cmd/analytics-service
@@ -16,6 +16,9 @@ lint:
 
 tidy:
 	go mod tidy
+
+generate:
+	buf generate
 
 migrate-up:
 	migrate -path migrations -database "$$ANALYTICS_DSN" up

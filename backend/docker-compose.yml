@@ -189,6 +189,23 @@ services:
       ]
     restart: "no"
 
+  migrate-analytics:
+    image: migrate/migrate:v4.18.3
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./migrations/analytics-service:/migrations:ro
+    command:
+      [
+        "-path",
+        "/migrations",
+        "-database",
+        "postgres://analytics:analytics@postgres:5432/analytics?sslmode=disable",
+        "up"
+      ]
+    restart: "no"
+
   ensure-notification-db:
     image: postgres:17-alpine
     depends_on:
@@ -427,6 +444,21 @@ services:
       - "18089:8080"
       - "19097:9090"
 
+  analytics-service:
+    build:
+      context: ./analytics-service
+    depends_on:
+      migrate-analytics:
+        condition: service_completed_successfully
+    environment:
+      ANALYTICS_POSTGRES_DSN: postgres://analytics:analytics@postgres:5432/analytics?sslmode=disable
+      ANALYTICS_HTTP_ADDR: :8080
+      ANALYTICS_GRPC_ADDR: :9090
+      ANALYTICS_APP_ENV: local
+    ports:
+      - "18090:8080"
+      - "19096:9090"
+
   api-gateway:
     build:
       context: ./api-gateway
@@ -442,6 +474,8 @@ services:
       chat-service:
         condition: service_started
       billing-service:
+        condition: service_started
+      analytics-service:
         condition: service_started
       notification-service:
         condition: service_started

@@ -9,7 +9,7 @@ http:
   write_timeout: 15s
   idle_timeout: 30s
 grpc:
-  addr: ":19088"
+  addr: ":9090"
 postgres:
   dsn: "postgres://analytics:analytics@analytics-postgres:5432/analytics?sslmode=disable"
 kafka:

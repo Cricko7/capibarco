@@ -86,7 +86,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("app.env", "local")
 	v.SetDefault("app.version", "0.1.0")
 	v.SetDefault("http.addr", ":18088")
-	v.SetDefault("grpc.addr", ":19088")
+	v.SetDefault("grpc.addr", ":9090")
 	v.SetDefault("http.shutdown_timeout", "10s")
 	v.SetDefault("http.read_timeout", "10s")
 	v.SetDefault("http.write_timeout", "15s")

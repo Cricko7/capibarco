@@ -73,6 +73,7 @@ docker compose up --build
 | Feed service | `18084` | `18085` |
 | Matching service | `18086` | `19094` |
 | User service | `18087` | `19095` |
+| Analytics service | `18090` | `19096` |
 | API Gateway | `18088` | - |
 | Notification service | `18089` | `19097` |
 | PostgreSQL | - | `15432` |

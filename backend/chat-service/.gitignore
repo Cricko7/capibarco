@@ -3,4 +3,6 @@ coverage.out
 .env
 tmp/
 *.test
-gen/
+gen/*
+!gen/go/
+!gen/go/**

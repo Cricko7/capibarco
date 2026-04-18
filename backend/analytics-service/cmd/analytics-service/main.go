@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -12,10 +13,14 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/time/rate"
+	gogrpc "google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 
+	analyticsv1 "github.com/petmatch/petmatch/gen/go/petmatch/analytics/v1"
 	"github.com/petmatch/petmatch/internal/application"
 	"github.com/petmatch/petmatch/internal/config"
 	grpcdelivery "github.com/petmatch/petmatch/internal/delivery/grpc"
+	legacygrpcpb "github.com/petmatch/petmatch/internal/delivery/grpc/pb"
 	httpdelivery "github.com/petmatch/petmatch/internal/delivery/http"
 	"github.com/petmatch/petmatch/internal/infrastructure/kafka"
 	"github.com/petmatch/petmatch/internal/infrastructure/postgres"
@@ -59,7 +64,29 @@ func main() {
 	limiter := rate.NewLimiter(rate.Limit(cfg.Rate.RPS), cfg.Rate.Burst)
 	handler := httpdelivery.NewServer(logger, service, reg, metrics, limiter)
 
-	httpServer := &http.Server{Addr: cfg.HTTP.Addr, Handler: handler, ReadTimeout: cfg.HTTP.ReadTimeout, WriteTimeout: cfg.HTTP.WriteTimeout, IdleTimeout: cfg.HTTP.IdleTimeout, ReadHeaderTimeout: 5 * time.Second}
+	grpcServer := gogrpc.NewServer(gogrpc.ChainUnaryInterceptor(
+		grpcdelivery.RecoveryInterceptor(logger),
+		grpcdelivery.RequestIDInterceptor(),
+		grpcdelivery.LoggingInterceptor(logger),
+	))
+	legacygrpcpb.RegisterAnalyticsServiceServer(grpcServer, grpcdelivery.NewServer(service))
+	analyticsv1.RegisterAnalyticsServiceServer(grpcServer, grpcdelivery.NewPetmatchServer(service))
+	reflection.Register(grpcServer)
+
+	httpServer := &http.Server{
+		Addr:              cfg.HTTP.Addr,
+		Handler:           handler,
+		ReadTimeout:       cfg.HTTP.ReadTimeout,
+		WriteTimeout:      cfg.HTTP.WriteTimeout,
+		IdleTimeout:       cfg.HTTP.IdleTimeout,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+	grpcListener, err := net.Listen("tcp", cfg.GRPC.Addr)
+	if err != nil {
+		logger.ErrorContext(ctx, "listen grpc", slog.String("addr", cfg.GRPC.Addr), slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+
 	errCh := make(chan error, 2)
 	platform.Go(ctx, logger, "http-server", func() error {
 		logger.InfoContext(ctx, "http server listening", slog.String("addr", cfg.HTTP.Addr))
@@ -69,12 +96,10 @@ func main() {
 		}
 		return err
 	}, errCh)
-
-	grpcServer, err := grpcdelivery.ListenAndServe(ctx, logger, cfg.GRPC.Addr, service, errCh)
-	if err != nil {
-		logger.ErrorContext(ctx, "start grpc server", slog.String("error", err.Error()))
-		os.Exit(1)
-	}
+	platform.Go(ctx, logger, "grpc-server", func() error {
+		logger.InfoContext(ctx, "grpc server listening", slog.String("addr", cfg.GRPC.Addr))
+		return grpcServer.Serve(grpcListener)
+	}, errCh)
 
 	select {
 	case <-ctx.Done():
@@ -85,9 +110,9 @@ func main() {
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.HTTP.ShutdownTimeout)
 	defer cancel()
-	grpcServer.GracefulStop()
 	if err := httpServer.Shutdown(shutdownCtx); err != nil {
 		logger.ErrorContext(shutdownCtx, "shutdown http server", slog.String("error", err.Error()))
 	}
+	grpcServer.GracefulStop()
 	logger.Info("analytics-service stopped")
 }
