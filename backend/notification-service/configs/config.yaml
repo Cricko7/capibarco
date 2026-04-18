@@ -1,0 +1,36 @@
+service:
+  name: notification-service
+  environment: local
+  log_level: info
+  version: 0.1.0
+
+http:
+  addr: 0.0.0.0:8080
+  read_timeout: 5s
+  write_timeout: 10s
+  idle_timeout: 60s
+  shutdown_timeout: 10s
+  cors_origins:
+    - http://localhost:3000
+
+grpc:
+  addr: 0.0.0.0:9090
+  rate_limit_per_sec: 100
+  rate_limit_burst: 200
+  request_timeout: 5s
+
+db:
+  dsn: postgres://notification:notification@localhost:15432/notification?sslmode=disable
+  max_conns: 25
+  max_conn_lifetime: 30m
+
+kafka:
+  enabled: true
+  brokers:
+    - localhost:19093
+  client_id: notification-service
+  group_id: notification-service
+  topic_prefix: notification
+  retry_count: 3
+  retry_backoff: 200ms
+  breaker_fail_threshold: 5

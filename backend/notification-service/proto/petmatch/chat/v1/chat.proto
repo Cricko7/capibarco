@@ -1,0 +1,232 @@
+syntax = "proto3";
+
+package petmatch.chat.v1;
+
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+import "petmatch/common/v1/common.proto";
+
+option go_package = "github.com/petmatch/petmatch/gen/go/petmatch/chat/v1;chatv1";
+
+// ChatService owns adoption conversations, messages, read state, and realtime streams.
+service ChatService {
+  rpc CreateConversation(CreateConversationRequest) returns (CreateConversationResponse);
+  rpc GetConversation(GetConversationRequest) returns (GetConversationResponse);
+  rpc ListConversations(ListConversationsRequest) returns (ListConversationsResponse);
+  rpc ListMessages(ListMessagesRequest) returns (ListMessagesResponse);
+  rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
+  rpc UpdateMessage(UpdateMessageRequest) returns (UpdateMessageResponse);
+  rpc MarkRead(MarkReadRequest) returns (MarkReadResponse);
+  rpc Connect(stream ClientChatFrame) returns (stream ServerChatFrame);
+  rpc SubscribeConversation(SubscribeConversationRequest) returns (stream ChatEvent);
+}
+
+enum ConversationStatus {
+  CONVERSATION_STATUS_UNSPECIFIED = 0;
+  CONVERSATION_STATUS_ACTIVE = 1;
+  CONVERSATION_STATUS_ARCHIVED = 2;
+  CONVERSATION_STATUS_BLOCKED = 3;
+}
+
+enum MessageType {
+  MESSAGE_TYPE_UNSPECIFIED = 0;
+  MESSAGE_TYPE_TEXT = 1;
+  MESSAGE_TYPE_IMAGE = 2;
+  MESSAGE_TYPE_SYSTEM = 3;
+  MESSAGE_TYPE_ADOPTION_STATUS = 4;
+}
+
+enum ChatFrameType {
+  CHAT_FRAME_TYPE_UNSPECIFIED = 0;
+  CHAT_FRAME_TYPE_AUTH = 1;
+  CHAT_FRAME_TYPE_MESSAGE = 2;
+  CHAT_FRAME_TYPE_TYPING = 3;
+  CHAT_FRAME_TYPE_READ_RECEIPT = 4;
+  CHAT_FRAME_TYPE_PING = 5;
+  CHAT_FRAME_TYPE_ACK = 6;
+  CHAT_FRAME_TYPE_ERROR = 7;
+}
+
+message Conversation {
+  string conversation_id = 1;
+  string match_id = 2;
+  string animal_id = 3;
+  string adopter_profile_id = 4;
+  string owner_profile_id = 5;
+  ConversationStatus status = 6;
+  Message last_message = 7;
+  int32 unread_count = 8;
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+}
+
+message Message {
+  string message_id = 1;
+  string conversation_id = 2;
+  string sender_profile_id = 3;
+  MessageType type = 4;
+  string text = 5;
+  repeated petmatch.common.v1.Photo attachments = 6;
+  map<string, string> metadata = 7;
+  google.protobuf.Timestamp sent_at = 8;
+  google.protobuf.Timestamp edited_at = 9;
+  google.protobuf.Timestamp deleted_at = 10;
+}
+
+message CreateConversationRequest {
+  string match_id = 1;
+  string animal_id = 2;
+  string adopter_profile_id = 3;
+  string owner_profile_id = 4;
+  string idempotency_key = 5;
+}
+
+message CreateConversationResponse {
+  Conversation conversation = 1;
+}
+
+message GetConversationRequest {
+  string conversation_id = 1;
+}
+
+message GetConversationResponse {
+  Conversation conversation = 1;
+}
+
+message ListConversationsRequest {
+  string participant_profile_id = 1;
+  repeated ConversationStatus statuses = 2;
+  petmatch.common.v1.PageRequest page = 3;
+}
+
+message ListConversationsResponse {
+  repeated Conversation conversations = 1;
+  petmatch.common.v1.PageResponse page = 2;
+}
+
+message ListMessagesRequest {
+  string conversation_id = 1;
+  petmatch.common.v1.PageRequest page = 2;
+}
+
+message ListMessagesResponse {
+  repeated Message messages = 1;
+  petmatch.common.v1.PageResponse page = 2;
+}
+
+message SendMessageRequest {
+  string conversation_id = 1;
+  string sender_profile_id = 2;
+  MessageType type = 3;
+  string text = 4;
+  repeated petmatch.common.v1.Photo attachments = 5;
+  string client_message_id = 6;
+  string idempotency_key = 7;
+}
+
+message SendMessageResponse {
+  Message message = 1;
+}
+
+message UpdateMessageRequest {
+  string message_id = 1;
+  Message message = 2;
+  google.protobuf.FieldMask update_mask = 3;
+}
+
+message UpdateMessageResponse {
+  Message message = 1;
+}
+
+message MarkReadRequest {
+  string conversation_id = 1;
+  string reader_profile_id = 2;
+  string up_to_message_id = 3;
+}
+
+message MarkReadResponse {
+  google.protobuf.Timestamp read_at = 1;
+}
+
+message SubscribeConversationRequest {
+  string conversation_id = 1;
+  string participant_profile_id = 2;
+}
+
+message ClientChatFrame {
+  string frame_id = 1;
+  ChatFrameType type = 2;
+  google.protobuf.Timestamp client_sent_at = 3;
+  oneof payload {
+    ChatAuthPayload auth = 10;
+    SendMessageRequest message = 11;
+    TypingPayload typing = 12;
+    MarkReadRequest read_receipt = 13;
+  }
+}
+
+message ServerChatFrame {
+  string frame_id = 1;
+  ChatFrameType type = 2;
+  google.protobuf.Timestamp server_sent_at = 3;
+  oneof payload {
+    ChatEvent event = 10;
+    ChatAck ack = 11;
+    ChatError error = 12;
+  }
+}
+
+message ChatAuthPayload {
+  string access_token = 1;
+  string conversation_id = 2;
+}
+
+message TypingPayload {
+  string conversation_id = 1;
+  string profile_id = 2;
+  bool typing = 3;
+}
+
+message ChatAck {
+  string acked_frame_id = 1;
+  optional string message_id = 2;
+}
+
+message ChatError {
+  string code = 1;
+  string message = 2;
+  bool retryable = 3;
+}
+
+message ChatEvent {
+  petmatch.common.v1.EventEnvelope envelope = 1;
+  oneof event {
+    ConversationCreatedEvent conversation_created = 10;
+    MessageSentEvent message_sent = 11;
+    MessageReadEvent message_read = 12;
+    ParticipantTypingEvent participant_typing = 13;
+  }
+}
+
+message ConversationCreatedEvent {
+  petmatch.common.v1.EventEnvelope envelope = 1;
+  Conversation conversation = 2;
+}
+
+message MessageSentEvent {
+  petmatch.common.v1.EventEnvelope envelope = 1;
+  Message message = 2;
+}
+
+message MessageReadEvent {
+  petmatch.common.v1.EventEnvelope envelope = 1;
+  string conversation_id = 2;
+  string reader_profile_id = 3;
+  string up_to_message_id = 4;
+  google.protobuf.Timestamp read_at = 5;
+}
+
+message ParticipantTypingEvent {
+  petmatch.common.v1.EventEnvelope envelope = 1;
+  TypingPayload typing = 2;
+}
