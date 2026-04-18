@@ -15,7 +15,9 @@ import (
 
 	"github.com/petmatch/petmatch/internal/application"
 	"github.com/petmatch/petmatch/internal/config"
+	grpcdelivery "github.com/petmatch/petmatch/internal/delivery/grpc"
 	httpdelivery "github.com/petmatch/petmatch/internal/delivery/http"
+	"github.com/petmatch/petmatch/internal/infrastructure/kafka"
 	"github.com/petmatch/petmatch/internal/infrastructure/postgres"
 	"github.com/petmatch/petmatch/internal/infrastructure/resilience"
 	"github.com/petmatch/petmatch/internal/observability"
@@ -43,23 +45,22 @@ func main() {
 	}
 	defer repo.Close()
 
+	kafkaPublisher := kafka.NewPublisher(cfg.Kafka.Brokers, cfg.Kafka.TopicRanking, cfg.Kafka.ClientID, cfg.Kafka.WriteTimeout)
+	defer func() {
+		if err := kafkaPublisher.Close(); err != nil {
+			logger.Error("close kafka publisher", slog.String("error", err.Error()))
+		}
+	}()
+
 	reg := prometheus.NewRegistry()
 	metrics := observability.NewMetrics(reg)
-	publisher := resilience.NewBreakerPublisher(resilience.LogPublisher{})
+	publisher := resilience.NewBreakerPublisher(kafkaPublisher)
 	service := application.NewService(repo, platform.Clock{}, publisher, application.ServiceConfig{Retries: 3, Backoff: 100 * time.Millisecond})
 	limiter := rate.NewLimiter(rate.Limit(cfg.Rate.RPS), cfg.Rate.Burst)
 	handler := httpdelivery.NewServer(logger, service, reg, metrics, limiter)
 
-	httpServer := &http.Server{
-		Addr:              cfg.HTTP.Addr,
-		Handler:           handler,
-		ReadTimeout:       cfg.HTTP.ReadTimeout,
-		WriteTimeout:      cfg.HTTP.WriteTimeout,
-		IdleTimeout:       cfg.HTTP.IdleTimeout,
-		ReadHeaderTimeout: 5 * time.Second,
-	}
-
-	errCh := make(chan error, 1)
+	httpServer := &http.Server{Addr: cfg.HTTP.Addr, Handler: handler, ReadTimeout: cfg.HTTP.ReadTimeout, WriteTimeout: cfg.HTTP.WriteTimeout, IdleTimeout: cfg.HTTP.IdleTimeout, ReadHeaderTimeout: 5 * time.Second}
+	errCh := make(chan error, 2)
 	platform.Go(ctx, logger, "http-server", func() error {
 		logger.InfoContext(ctx, "http server listening", slog.String("addr", cfg.HTTP.Addr))
 		err := httpServer.ListenAndServe()
@@ -68,6 +69,12 @@ func main() {
 		}
 		return err
 	}, errCh)
+
+	grpcServer, err := grpcdelivery.ListenAndServe(ctx, logger, cfg.GRPC.Addr, service, errCh)
+	if err != nil {
+		logger.ErrorContext(ctx, "start grpc server", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
 
 	select {
 	case <-ctx.Done():
@@ -78,6 +85,7 @@ func main() {
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.HTTP.ShutdownTimeout)
 	defer cancel()
+	grpcServer.GracefulStop()
 	if err := httpServer.Shutdown(shutdownCtx); err != nil {
 		logger.ErrorContext(shutdownCtx, "shutdown http server", slog.String("error", err.Error()))
 	}

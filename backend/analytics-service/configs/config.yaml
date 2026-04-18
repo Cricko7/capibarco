@@ -8,8 +8,16 @@ http:
   read_timeout: 10s
   write_timeout: 15s
   idle_timeout: 30s
+grpc:
+  addr: ":19088"
 postgres:
   dsn: "postgres://analytics:analytics@analytics-postgres:5432/analytics?sslmode=disable"
+kafka:
+  brokers:
+    - "kafka:9092"
+  topic_ranking: "analytics.ranking_feedback.v1"
+  client_id: "analytics-service"
+  write_timeout: 5s
 rate:
   rps: 100
   burst: 200
