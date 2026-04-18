@@ -52,6 +52,19 @@ func TestDecodeSwipeAnimalBodyAcceptsStringDirection(t *testing.T) {
 	}
 }
 
+func TestDecodeCreateDonationIntentBodyAcceptsStringTargetType(t *testing.T) {
+	input, err := decodeCreateDonationIntentBodyBytes([]byte(`{"target_type":"DONATION_TARGET_TYPE_ANIMAL","target_id":"animal-1","amount":{"currency_code":"RUB","units":500,"nanos":0}}`))
+	if err != nil {
+		t.Fatalf("decodeCreateDonationIntentBodyBytes() error = %v", err)
+	}
+	if input.TargetType != 2 {
+		t.Fatalf("target_type decoded as %v, want 2", input.TargetType)
+	}
+	if input.Provider != "mock" {
+		t.Fatalf("provider decoded as %q, want mock", input.Provider)
+	}
+}
+
 func TestImageDimensionsReadsUploadedImageAndRewinds(t *testing.T) {
 	var body bytes.Buffer
 	img := image.NewRGBA(image.Rect(0, 0, 3, 2))

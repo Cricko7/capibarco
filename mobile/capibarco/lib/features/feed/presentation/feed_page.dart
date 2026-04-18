@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/localization/app_localizations.dart';
+import '../../billing/presentation/donate_animal_sheet.dart';
 import '../../../shared/presentation/page_shell.dart';
 import '../../../shared/presentation/section_header.dart';
 import '../../../shared/presentation/soft_card.dart';
@@ -165,6 +166,33 @@ class _FeedPageState extends ConsumerState<FeedPage> {
                                         .toList(),
                                   ),
                                 ],
+                                const SizedBox(height: 14),
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: TextButton.icon(
+                                    onPressed: () => showModalBottomSheet<void>(
+                                      context: context,
+                                      isScrollControlled: true,
+                                      backgroundColor: Theme.of(
+                                        context,
+                                      ).colorScheme.surfaceContainerLowest,
+                                      shape: const RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.vertical(
+                                          top: Radius.circular(32),
+                                        ),
+                                      ),
+                                      builder: (context) => DonateAnimalSheet(
+                                        animalId: card.animalId,
+                                        animalName: card.name,
+                                        ownerDisplayName: card.ownerDisplayName,
+                                      ),
+                                    ),
+                                    icon: const Icon(
+                                      Icons.volunteer_activism_rounded,
+                                    ),
+                                    label: Text(l10n.supportAnimal),
+                                  ),
+                                ),
                                 const SizedBox(height: 18),
                                 Row(
                                   children: <Widget>[

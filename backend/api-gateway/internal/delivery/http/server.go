@@ -528,14 +528,9 @@ func (s *Server) sendMessage(c *gin.Context) {
 }
 
 func (s *Server) createDonationIntent(c *gin.Context) {
-	var input struct {
-		TargetType int32                 `json:"target_type"`
-		TargetID   string                `json:"target_id"`
-		Amount     *commonv1.MoneyAmount `json:"amount"`
-		Provider   string                `json:"provider"`
-	}
-	if err := c.ShouldBindJSON(&input); err != nil {
-		problem.Abort(c, fmt.Errorf("%w: %v", gateway.ErrInvalidInput, err))
+	input, err := decodeCreateDonationIntentBody(c)
+	if err != nil {
+		problem.Abort(c, err)
 		return
 	}
 	out, err := s.app.CreateDonationIntent(c.Request.Context(), gateway.CreateDonationIntentInput{
@@ -642,10 +637,33 @@ func decodeSwipeAnimalBody(c *gin.Context) (swipeAnimalJSON, error) {
 	return input, nil
 }
 
+func decodeCreateDonationIntentBody(c *gin.Context) (createDonationIntentJSON, error) {
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		return createDonationIntentJSON{}, fmt.Errorf("%w: read body: %v", gateway.ErrInvalidInput, err)
+	}
+	input, err := decodeCreateDonationIntentBodyBytes(body)
+	if err != nil {
+		return createDonationIntentJSON{}, fmt.Errorf("%w: decode json: %v", gateway.ErrInvalidInput, err)
+	}
+	return input, nil
+}
+
 func decodeSwipeAnimalBodyBytes(body []byte) (swipeAnimalJSON, error) {
 	var input swipeAnimalJSON
 	if err := json.Unmarshal(body, &input); err != nil {
 		return swipeAnimalJSON{}, err
+	}
+	return input, nil
+}
+
+func decodeCreateDonationIntentBodyBytes(body []byte) (createDonationIntentJSON, error) {
+	var input createDonationIntentJSON
+	if err := json.Unmarshal(body, &input); err != nil {
+		return createDonationIntentJSON{}, err
+	}
+	if strings.TrimSpace(input.Provider) == "" {
+		input.Provider = "mock"
 	}
 	return input, nil
 }
@@ -655,6 +673,13 @@ type swipeAnimalJSON struct {
 	Direction      swipeDirection `json:"direction"`
 	FeedCardID     *string        `json:"feed_card_id"`
 	FeedSessionID  *string        `json:"feed_session_id"`
+}
+
+type createDonationIntentJSON struct {
+	TargetType donationTargetType    `json:"target_type"`
+	TargetID   string                `json:"target_id"`
+	Amount     *commonv1.MoneyAmount `json:"amount"`
+	Provider   string                `json:"provider"`
 }
 
 type swipeDirection int32
@@ -674,6 +699,26 @@ func (d *swipeDirection) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("unknown swipe direction %q", name)
 	}
 	*d = swipeDirection(value)
+	return nil
+}
+
+type donationTargetType int32
+
+func (d *donationTargetType) UnmarshalJSON(data []byte) error {
+	var number int32
+	if err := json.Unmarshal(data, &number); err == nil {
+		*d = donationTargetType(number)
+		return nil
+	}
+	var name string
+	if err := json.Unmarshal(data, &name); err != nil {
+		return err
+	}
+	value, ok := billingv1.DonationTargetType_value[name]
+	if !ok {
+		return fmt.Errorf("unknown donation target type %q", name)
+	}
+	*d = donationTargetType(value)
 	return nil
 }
 

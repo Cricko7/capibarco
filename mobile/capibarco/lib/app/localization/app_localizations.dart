@@ -69,6 +69,14 @@ class AppLocalizations {
       'animalCreated': 'Pet profile created.',
       'createPetCta': 'Add pet listing',
       'createProfileFirst': 'Create or update your profile first.',
+      'supportAnimal': 'Support this animal',
+      'donationAmount': 'Donation amount',
+      'amountHint': 'Enter amount in RUB',
+      'donateNow': 'Create donation',
+      'donationIntentCreated': 'Donation intent is ready.',
+      'paymentUrl': 'Payment URL',
+      'clientSecret': 'Client secret',
+      'close': 'Close',
     },
     'ru': {
       'appTitle': 'Capibarco',
@@ -120,6 +128,14 @@ class AppLocalizations {
       'animalCreated': 'Pet profile created.',
       'createPetCta': 'Add pet listing',
       'createProfileFirst': 'Create or update your profile first.',
+      'supportAnimal': 'Support this animal',
+      'donationAmount': 'Donation amount',
+      'amountHint': 'Enter amount in RUB',
+      'donateNow': 'Create donation',
+      'donationIntentCreated': 'Donation intent is ready.',
+      'paymentUrl': 'Payment URL',
+      'clientSecret': 'Client secret',
+      'close': 'Close',
     },
   };
 
@@ -176,6 +192,14 @@ class AppLocalizations {
   String get animalCreated => _text('animalCreated');
   String get createPetCta => _text('createPetCta');
   String get createProfileFirst => _text('createProfileFirst');
+  String get supportAnimal => _text('supportAnimal');
+  String get donationAmount => _text('donationAmount');
+  String get amountHint => _text('amountHint');
+  String get donateNow => _text('donateNow');
+  String get donationIntentCreated => _text('donationIntentCreated');
+  String get paymentUrl => _text('paymentUrl');
+  String get clientSecret => _text('clientSecret');
+  String get close => _text('close');
 }
 
 class _AppLocalizationsDelegate
