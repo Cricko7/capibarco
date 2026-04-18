@@ -41,20 +41,24 @@ class FeedCardDto {
         const <String, dynamic>{};
 
     return FeedCardDto(
-      id: json['feed_card_id'] as String? ?? '',
-      feedSessionId: json['feed_session_id'] as String? ?? '',
-      animalId: animal['animal_id'] as String? ?? '',
-      ownerProfileId: animal['owner_profile_id'] as String? ?? '',
-      name: animal['name'] as String? ?? 'Unknown',
-      species: animal['species'] as String? ?? 'SPECIES_UNSPECIFIED',
-      description: animal['description'] as String? ?? '',
-      ownerDisplayName: json['owner_display_name'] as String? ?? 'Caregiver',
-      photoUrl: firstPhoto['url'] as String? ?? '',
-      city: location['city'] as String? ?? '',
-      boosted: json['boosted'] as bool? ?? false,
+      id: _stringValue(json['feed_card_id']),
+      feedSessionId: _stringValue(json['feed_session_id']),
+      animalId: _stringValue(animal['animal_id']),
+      ownerProfileId: _stringValue(animal['owner_profile_id']),
+      name: _stringValue(animal['name'], fallback: 'Unknown'),
+      species: _speciesValue(animal['species']),
+      description: _stringValue(animal['description']),
+      ownerDisplayName: _stringValue(
+        json['owner_display_name'],
+        fallback: 'Caregiver',
+      ),
+      photoUrl: _stringValue(firstPhoto['url']),
+      city: _stringValue(location['city']),
+      boosted: _boolValue(json['boosted']),
       rankingReasons:
           (json['ranking_reasons'] as List<dynamic>? ?? const <dynamic>[])
-              .whereType<String>()
+              .map((item) => _stringValue(item))
+              .where((item) => item.isNotEmpty)
               .toList(),
     );
   }
@@ -75,6 +79,51 @@ class FeedCardDto {
       rankingReasons: rankingReasons,
     );
   }
+}
+
+String _stringValue(Object? value, {String fallback = ''}) {
+  if (value == null) {
+    return fallback;
+  }
+  if (value is String) {
+    return value;
+  }
+  return value.toString();
+}
+
+bool _boolValue(Object? value, {bool fallback = false}) {
+  if (value is bool) {
+    return value;
+  }
+  if (value is num) {
+    return value != 0;
+  }
+  if (value is String) {
+    final normalized = value.trim().toLowerCase();
+    if (normalized == 'true' || normalized == '1') {
+      return true;
+    }
+    if (normalized == 'false' || normalized == '0') {
+      return false;
+    }
+  }
+  return fallback;
+}
+
+String _speciesValue(Object? value) {
+  if (value is num) {
+    return switch (value.toInt()) {
+      1 => 'SPECIES_DOG',
+      2 => 'SPECIES_CAT',
+      3 => 'SPECIES_BIRD',
+      4 => 'SPECIES_RABBIT',
+      5 => 'SPECIES_RODENT',
+      6 => 'SPECIES_REPTILE',
+      7 => 'SPECIES_OTHER',
+      _ => 'SPECIES_UNSPECIFIED',
+    };
+  }
+  return _stringValue(value, fallback: 'SPECIES_UNSPECIFIED');
 }
 
 class FeedPageDto {

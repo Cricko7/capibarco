@@ -21,15 +21,15 @@ class NotificationItemDto {
 
   factory NotificationItemDto.fromJson(Map<String, dynamic> json) {
     return NotificationItemDto(
-      id: json['notification_id'] as String? ?? '',
-      title: json['title'] as String? ?? '',
-      body: json['body'] as String? ?? '',
-      type: json['type'] as String? ?? 'NOTIFICATION_TYPE_UNSPECIFIED',
-      status: json['status'] as String? ?? 'NOTIFICATION_STATUS_UNSPECIFIED',
+      id: _stringValue(json['notification_id']),
+      title: _stringValue(json['title']),
+      body: _stringValue(json['body']),
+      type: _notificationTypeValue(json['type']),
+      status: _notificationStatusValue(json['status']),
       createdAt:
-          DateTime.tryParse(json['created_at'] as String? ?? '')?.toUtc() ??
+          DateTime.tryParse(_stringValue(json['created_at']))?.toUtc() ??
           DateTime.now().toUtc(),
-      readAt: DateTime.tryParse(json['read_at'] as String? ?? ''),
+      readAt: DateTime.tryParse(_stringValue(json['read_at'])),
     );
   }
 
@@ -44,6 +44,43 @@ class NotificationItemDto {
       readAt: readAt,
     );
   }
+}
+
+String _stringValue(Object? value, {String fallback = ''}) {
+  if (value == null) {
+    return fallback;
+  }
+  if (value is String) {
+    return value;
+  }
+  return value.toString();
+}
+
+String _notificationTypeValue(Object? value) {
+  if (value is num) {
+    return switch (value.toInt()) {
+      1 => 'NOTIFICATION_TYPE_MATCH_CREATED',
+      2 => 'NOTIFICATION_TYPE_CHAT_MESSAGE',
+      3 => 'NOTIFICATION_TYPE_DONATION_SUCCEEDED',
+      4 => 'NOTIFICATION_TYPE_BOOST_ACTIVATED',
+      5 => 'NOTIFICATION_TYPE_REVIEW_CREATED',
+      _ => 'NOTIFICATION_TYPE_UNSPECIFIED',
+    };
+  }
+  return _stringValue(value, fallback: 'NOTIFICATION_TYPE_UNSPECIFIED');
+}
+
+String _notificationStatusValue(Object? value) {
+  if (value is num) {
+    return switch (value.toInt()) {
+      1 => 'NOTIFICATION_STATUS_PENDING',
+      2 => 'NOTIFICATION_STATUS_DELIVERED',
+      3 => 'NOTIFICATION_STATUS_FAILED',
+      4 => 'NOTIFICATION_STATUS_READ',
+      _ => 'NOTIFICATION_STATUS_UNSPECIFIED',
+    };
+  }
+  return _stringValue(value, fallback: 'NOTIFICATION_STATUS_UNSPECIFIED');
 }
 
 class NotificationsPageDto {

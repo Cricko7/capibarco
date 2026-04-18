@@ -11,7 +11,6 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/lib/pq"
 	domain "github.com/petmatch/petmatch/internal/domain/notification"
 )
 
@@ -71,7 +70,7 @@ RETURNING notification_id, recipient_profile_id, type, channels, title, body, da
 		notification.ID,
 		notification.RecipientProfileID,
 		int16(notification.Type),
-		pq.Array(channelsToInts(notification.Channels)),
+		channelsToInts(notification.Channels),
 		notification.Title,
 		notification.Body,
 		payload,
@@ -109,7 +108,7 @@ WHERE recipient_profile_id = $1`
 	args := []any{recipientProfileID}
 	if len(statuses) > 0 {
 		query += ` AND status = ANY($2)`
-		args = append(args, pq.Array(statusesToInts(statuses)))
+		args = append(args, statusesToInts(statuses))
 		query += ` ORDER BY created_at DESC, notification_id DESC LIMIT $3 OFFSET $4`
 		args = append(args, limit+1, offset)
 	} else {
@@ -178,16 +177,18 @@ func scanNotification(row interface{ Scan(dest ...any) error }) (domain.Notifica
 		data         []byte
 		channels     []int16
 		readAt       *time.Time
+		typeValue    int16
+		statusValue  int16
 	)
 	if err := row.Scan(
 		&notification.ID,
 		&notification.RecipientProfileID,
-		&notification.Type,
-		pq.Array(&channels),
+		&typeValue,
+		&channels,
 		&notification.Title,
 		&notification.Body,
 		&data,
-		&notification.Status,
+		&statusValue,
 		&readAt,
 		&notification.CreatedAt,
 		&notification.IdempotencyKey,
@@ -197,6 +198,8 @@ func scanNotification(row interface{ Scan(dest ...any) error }) (domain.Notifica
 		}
 		return domain.Notification{}, fmt.Errorf("scan notification: %w", err)
 	}
+	notification.Type = domain.Type(typeValue)
+	notification.Status = domain.Status(statusValue)
 	notification.Channels = intsToChannels(channels)
 	notification.ReadAt = readAt
 	notification.Data = map[string]string{}
