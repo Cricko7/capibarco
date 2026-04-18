@@ -1,6 +1,5 @@
-feed-service
-feed-service.exe
+/feed-service
+/feed-service.exe
 *.test
 coverage.out
 bin/
-
