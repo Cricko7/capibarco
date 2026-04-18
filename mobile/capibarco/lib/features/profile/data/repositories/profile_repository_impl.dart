@@ -30,7 +30,7 @@ class ProfileRepositoryImpl {
     required String profileType,
   }) async {
     try {
-      final profile = await _remoteDataSource.updateProfile(
+      await _remoteDataSource.updateProfile(
         profileId: profileId,
         authUserId: authUserId,
         displayName: displayName,
@@ -38,7 +38,8 @@ class ProfileRepositoryImpl {
         city: city,
         profileType: profileType,
       );
-      return profile.toDomain();
+      final refreshed = await _remoteDataSource.getProfile(profileId);
+      return refreshed.toDomain();
     } catch (error) {
       throw _errorMapper.map(error);
     }

@@ -69,6 +69,9 @@ class AppLocalizations {
       'animalCreated': 'Pet profile created.',
       'createPetCta': 'Add pet listing',
       'createProfileFirst': 'Create or update your profile first.',
+      'petPhoto': 'Pet photo',
+      'addPhoto': 'Add photo',
+      'changePhoto': 'Change photo',
       'supportAnimal': 'Support this animal',
       'donationAmount': 'Donation amount',
       'amountHint': 'Enter amount in RUB',
@@ -128,6 +131,9 @@ class AppLocalizations {
       'animalCreated': 'Pet profile created.',
       'createPetCta': 'Add pet listing',
       'createProfileFirst': 'Create or update your profile first.',
+      'petPhoto': 'Pet photo',
+      'addPhoto': 'Add photo',
+      'changePhoto': 'Change photo',
       'supportAnimal': 'Support this animal',
       'donationAmount': 'Donation amount',
       'amountHint': 'Enter amount in RUB',
@@ -192,6 +198,9 @@ class AppLocalizations {
   String get animalCreated => _text('animalCreated');
   String get createPetCta => _text('createPetCta');
   String get createProfileFirst => _text('createProfileFirst');
+  String get petPhoto => _text('petPhoto');
+  String get addPhoto => _text('addPhoto');
+  String get changePhoto => _text('changePhoto');
   String get supportAnimal => _text('supportAnimal');
   String get donationAmount => _text('donationAmount');
   String get amountHint => _text('amountHint');

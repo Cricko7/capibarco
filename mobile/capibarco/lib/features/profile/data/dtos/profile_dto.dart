@@ -36,7 +36,7 @@ class UserProfileDto {
       bio: profile['bio'] as String? ?? '',
       city: address['city'] as String? ?? '',
       avatarUrl: profile['avatar_url'] as String? ?? '',
-      type: profile['profile_type'] as String? ?? 'PROFILE_TYPE_USER',
+      type: _profileTypeFromJson(profile['profile_type']),
       averageRating: (reputation['average_rating'] as num?)?.toDouble() ?? 0,
       reviewsCount: (reputation['reviews_count'] as num?)?.toInt() ?? 0,
     );
@@ -54,5 +54,23 @@ class UserProfileDto {
       averageRating: averageRating,
       reviewsCount: reviewsCount,
     );
+  }
+
+  static String _profileTypeFromJson(Object? value) {
+    if (value is String && value.isNotEmpty) {
+      return value;
+    }
+    if (value is num) {
+      switch (value.toInt()) {
+        case 2:
+          return 'PROFILE_TYPE_SHELTER';
+        case 3:
+          return 'PROFILE_TYPE_KENNEL';
+        case 1:
+        default:
+          return 'PROFILE_TYPE_USER';
+      }
+    }
+    return 'PROFILE_TYPE_USER';
   }
 }

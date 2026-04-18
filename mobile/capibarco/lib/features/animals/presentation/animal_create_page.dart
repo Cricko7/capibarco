@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../app/localization/app_localizations.dart';
 import '../../../shared/presentation/page_shell.dart';
@@ -22,6 +25,7 @@ class _AnimalCreatePageState extends ConsumerState<AnimalCreatePage> {
   final _ageController = TextEditingController(text: '12');
   final _descriptionController = TextEditingController();
   final _traitsController = TextEditingController();
+  final _imagePicker = ImagePicker();
 
   String _species = 'SPECIES_DOG';
   String _sex = 'ANIMAL_SEX_FEMALE';
@@ -29,6 +33,7 @@ class _AnimalCreatePageState extends ConsumerState<AnimalCreatePage> {
   bool _vaccinated = true;
   bool _sterilized = false;
   bool _publishNow = true;
+  XFile? _selectedPhoto;
 
   @override
   void dispose() {
@@ -163,6 +168,54 @@ class _AnimalCreatePageState extends ConsumerState<AnimalCreatePage> {
                       ),
                     ),
                     const SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        l10n.petPhoto,
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    if (_selectedPhoto != null) ...<Widget>[
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(24),
+                        child: SizedBox(
+                          height: 180,
+                          width: double.infinity,
+                          child: Image.file(
+                            File(_selectedPhoto!.path),
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: state.isSubmitting ? null : _pickPhoto,
+                            icon: const Icon(Icons.add_a_photo_rounded),
+                            label: Text(
+                              _selectedPhoto == null
+                                  ? l10n.addPhoto
+                                  : l10n.changePhoto,
+                            ),
+                          ),
+                        ),
+                        if (_selectedPhoto != null) ...<Widget>[
+                          const SizedBox(width: 12),
+                          IconButton.filledTonal(
+                            onPressed: state.isSubmitting
+                                ? null
+                                : () => setState(() => _selectedPhoto = null),
+                            icon: const Icon(Icons.delete_outline_rounded),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 12),
                     SwitchListTile.adaptive(
                       contentPadding: EdgeInsets.zero,
                       title: Text(l10n.vaccinated),
@@ -222,6 +275,7 @@ class _AnimalCreatePageState extends ConsumerState<AnimalCreatePage> {
                                     vaccinated: _vaccinated,
                                     sterilized: _sterilized,
                                     publishNow: _publishNow,
+                                    photo: _selectedPhoto,
                                   );
                               if (success && context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
@@ -248,5 +302,16 @@ class _AnimalCreatePageState extends ConsumerState<AnimalCreatePage> {
         ),
       ),
     );
+  }
+
+  Future<void> _pickPhoto() async {
+    final photo = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 88,
+    );
+    if (photo == null || !mounted) {
+      return;
+    }
+    setState(() => _selectedPhoto = photo);
   }
 }

@@ -51,4 +51,21 @@ class AnimalsRepositoryImpl {
       throw _errorMapper.map(error);
     }
   }
+
+  Future<AnimalListingEntity> uploadAnimalPhoto({
+    required String animalId,
+    required String photoPath,
+    required String fileName,
+  }) async {
+    try {
+      final animal = await _remoteDataSource.uploadAnimalPhoto(
+        animalId: animalId,
+        photoPath: photoPath,
+        fileName: fileName,
+      );
+      return animal.toDomain();
+    } catch (error) {
+      throw _errorMapper.map(error);
+    }
+  }
 }

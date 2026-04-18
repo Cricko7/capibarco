@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../bootstrap/providers.dart';
 import '../../../core/config/environment.dart';
@@ -76,6 +77,7 @@ class AnimalCreateController extends Notifier<AnimalCreateState> {
     required bool vaccinated,
     required bool sterilized,
     required bool publishNow,
+    XFile? photo,
   }) async {
     final profile = ref.read(profileControllerProvider).profile;
     if (profile == null) {
@@ -92,7 +94,7 @@ class AnimalCreateController extends Notifier<AnimalCreateState> {
     );
 
     try {
-      await _repository.createAnimal(
+      final animal = await _repository.createAnimal(
         ownerProfileId: profile.id,
         ownerType: _mapOwnerType(profile.typeCode),
         name: name,
@@ -108,9 +110,18 @@ class AnimalCreateController extends Notifier<AnimalCreateState> {
         publishNow: publishNow,
         city: profile.city,
       );
+      if (photo != null) {
+        await _repository.uploadAnimalPhoto(
+          animalId: animal.id,
+          photoPath: photo.path,
+          fileName: photo.name,
+        );
+      }
       state = state.copyWith(
         isSubmitting: false,
-        successMessage: 'Pet profile created.',
+        successMessage: photo == null
+            ? 'Pet profile created.'
+            : 'Pet profile created with photo.',
       );
       return true;
     } catch (error) {

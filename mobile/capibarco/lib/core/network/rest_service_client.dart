@@ -76,6 +76,33 @@ class RestServiceClient {
     return response.data ?? const <String, dynamic>{};
   }
 
+  Future<Map<String, dynamic>> postMultipart(
+    String path, {
+    required FormData data,
+    bool requiresAuth = true,
+    bool versioned = true,
+    bool idempotent = false,
+  }) async {
+    final headers = <String, String>{};
+    if (idempotent) {
+      headers['Idempotency-Key'] = _uuid.v4();
+    }
+
+    final response = await _dio.post<Map<String, dynamic>>(
+      _composePath(path, versioned: versioned),
+      data: data,
+      options: Options(
+        headers: headers,
+        contentType: 'multipart/form-data',
+        extra: <String, Object?>{
+          'authRequired': requiresAuth,
+          'retryable': false,
+        },
+      ),
+    );
+    return response.data ?? const <String, dynamic>{};
+  }
+
   String _composePath(String path, {required bool versioned}) {
     if (!versioned) {
       return path;

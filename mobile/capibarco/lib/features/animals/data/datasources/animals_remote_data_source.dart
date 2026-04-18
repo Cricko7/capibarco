@@ -39,4 +39,14 @@ class AnimalsRemoteDataSource {
     visibility: visibility,
     city: city,
   );
+
+  Future<AnimalListingDto> uploadAnimalPhoto({
+    required String animalId,
+    required String photoPath,
+    required String fileName,
+  }) => _apiClient.uploadAnimalPhoto(
+    animalId: animalId,
+    photoPath: photoPath,
+    fileName: fileName,
+  );
 }
