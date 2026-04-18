@@ -1,0 +1,36 @@
+services:
+  analytics-postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: analytics
+      POSTGRES_USER: analytics
+      POSTGRES_PASSWORD: analytics
+    ports:
+      - "15438:5432"
+    volumes:
+      - analytics_pg_data:/var/lib/postgresql/data
+
+  analytics-migrate:
+    image: migrate/migrate:v4.17.1
+    depends_on:
+      - analytics-postgres
+    volumes:
+      - ./migrations:/migrations:ro
+    command:
+      ["-path", "/migrations", "-database", "postgres://analytics:analytics@analytics-postgres:5432/analytics?sslmode=disable", "up"]
+
+  analytics-service:
+    build: .
+    depends_on:
+      analytics-postgres:
+        condition: service_started
+      analytics-migrate:
+        condition: service_completed_successfully
+    ports:
+      - "18088:18088"
+    environment:
+      ANALYTICS_POSTGRES_DSN: postgres://analytics:analytics@analytics-postgres:5432/analytics?sslmode=disable
+      ANALYTICS_APP_ENV: local
+
+volumes:
+  analytics_pg_data:
