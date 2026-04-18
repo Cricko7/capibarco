@@ -131,6 +131,22 @@ type UploadAnimalPhotoInput struct {
 	IdempotencyKey string
 }
 
+// ListOwnerAnimalsInput returns owner-linked animal cards.
+type ListOwnerAnimalsInput struct {
+	OwnerProfileID string
+	Statuses       []animalv1.AnimalStatus
+	PageSize       int32
+	PageToken      string
+}
+
+// CreateConversationInput opens a direct or animal-specific conversation.
+type CreateConversationInput struct {
+	TargetProfileID string
+	MatchID         string
+	AnimalID        string
+	IdempotencyKey  string
+}
+
 // ListConversationsInput contains pagination for chat conversations.
 type ListConversationsInput struct {
 	PageSize  int32

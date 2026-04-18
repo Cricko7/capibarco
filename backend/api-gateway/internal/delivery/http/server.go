@@ -112,11 +112,13 @@ func New(cfg config.Config, app *gateway.Service, chat chatStreamer, notificatio
 	protected.GET("/v1/animals/:animal_id/stats", s.getAnimalStats)
 	protected.GET("/v1/profiles", s.searchProfiles)
 	protected.GET("/v1/profiles/:profile_id", s.getProfile)
+	protected.GET("/v1/profiles/:profile_id/animals", s.listProfileAnimals)
 	protected.PATCH("/v1/profiles/:profile_id", s.updateProfile)
 	protected.GET("/v1/profiles/:profile_id/reviews", s.listReviews)
 	protected.POST("/v1/profiles/:profile_id/reviews", s.createReview)
 	protected.GET("/v1/profiles/:profile_id/reputation", s.getReputationSummary)
 	protected.PATCH("/v1/reviews/:review_id", s.updateReview)
+	protected.POST("/v1/chat/conversations", s.createConversation)
 	protected.GET("/v1/chat/conversations", s.listConversations)
 	protected.GET("/v1/chat/conversations/:conversation_id/messages", s.listMessages)
 	protected.POST("/v1/chat/conversations/:conversation_id/messages", s.sendMessage)
@@ -358,6 +360,19 @@ func (s *Server) getProfile(c *gin.Context) {
 	writeUserProfileEnvelope(c, http.StatusOK, out.Profile)
 }
 
+func (s *Server) listProfileAnimals(c *gin.Context) {
+	out, err := s.app.ListOwnerAnimals(c.Request.Context(), gateway.ListOwnerAnimalsInput{
+		OwnerProfileID: c.Param("profile_id"),
+		PageSize:       queryInt32(c, "page_size"),
+		PageToken:      c.Query("page_token"),
+	})
+	if err != nil {
+		problem.Abort(c, err)
+		return
+	}
+	writeProto(c, http.StatusOK, out)
+}
+
 func (s *Server) searchProfiles(c *gin.Context) {
 	var profileTypes []userv1.ProfileType
 	for _, raw := range c.QueryArray("profile_type") {
@@ -483,6 +498,29 @@ func (s *Server) getReputationSummary(c *gin.Context) {
 		return
 	}
 	writeReputationEnvelope(c, http.StatusOK, out.Reputation)
+}
+
+func (s *Server) createConversation(c *gin.Context) {
+	var input struct {
+		TargetProfileID string `json:"target_profile_id"`
+		MatchID         string `json:"match_id"`
+		AnimalID        string `json:"animal_id"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		problem.Abort(c, fmt.Errorf("%w: %v", gateway.ErrInvalidInput, err))
+		return
+	}
+	out, err := s.app.CreateConversation(c.Request.Context(), gateway.CreateConversationInput{
+		TargetProfileID: input.TargetProfileID,
+		MatchID:         input.MatchID,
+		AnimalID:        input.AnimalID,
+		IdempotencyKey:  idempotencyKey(c),
+	})
+	if err != nil {
+		problem.Abort(c, err)
+		return
+	}
+	writeProto(c, http.StatusCreated, out)
 }
 
 func (s *Server) listConversations(c *gin.Context) {

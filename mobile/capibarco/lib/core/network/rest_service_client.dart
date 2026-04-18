@@ -56,9 +56,12 @@ class RestServiceClient {
     bool requiresAuth = true,
     bool versioned = true,
     bool idempotent = false,
+    String? idempotencyKey,
   }) async {
     final headers = <String, String>{};
-    if (idempotent) {
+    if (idempotencyKey != null && idempotencyKey.isNotEmpty) {
+      headers['Idempotency-Key'] = idempotencyKey;
+    } else if (idempotent) {
       headers['Idempotency-Key'] = _uuid.v4();
     }
 
@@ -82,9 +85,12 @@ class RestServiceClient {
     bool requiresAuth = true,
     bool versioned = true,
     bool idempotent = false,
+    String? idempotencyKey,
   }) async {
     final headers = <String, String>{};
-    if (idempotent) {
+    if (idempotencyKey != null && idempotencyKey.isNotEmpty) {
+      headers['Idempotency-Key'] = idempotencyKey;
+    } else if (idempotent) {
       headers['Idempotency-Key'] = _uuid.v4();
     }
 

@@ -45,8 +45,8 @@ func NewService(
 
 // CreateConversationInput is input for conversation creation.
 type CreateConversationInput struct {
-	MatchID          string `validate:"required"`
-	AnimalID         string `validate:"required"`
+	MatchID          string
+	AnimalID         string
 	AdopterProfileID string `validate:"required"`
 	OwnerProfileID   string `validate:"required"`
 	IdempotencyKey   string `validate:"required"`

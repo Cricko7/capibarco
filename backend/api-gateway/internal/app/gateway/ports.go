@@ -39,6 +39,7 @@ type AnimalClient interface {
 	GetAnimal(context.Context, string) (*animalv1.AnimalProfile, error)
 	CreateAnimal(context.Context, *animalv1.CreateAnimalRequest) (*animalv1.AnimalProfile, error)
 	AddPhoto(context.Context, string, *commonv1.Photo, string) (*animalv1.AnimalProfile, error)
+	ListOwnerAnimals(context.Context, *animalv1.ListOwnerAnimalsRequest) (*animalv1.ListOwnerAnimalsResponse, error)
 }
 
 // MatchingClient exposes matching-service calls used by the gateway.
@@ -48,6 +49,7 @@ type MatchingClient interface {
 
 // ChatClient exposes chat-service unary calls used by REST handlers.
 type ChatClient interface {
+	CreateConversation(context.Context, *chatv1.CreateConversationRequest) (*chatv1.CreateConversationResponse, error)
 	ListConversations(context.Context, *chatv1.ListConversationsRequest) (*chatv1.ListConversationsResponse, error)
 	ListMessages(context.Context, *chatv1.ListMessagesRequest) (*chatv1.ListMessagesResponse, error)
 	SendMessage(context.Context, *chatv1.SendMessageRequest) (*chatv1.SendMessageResponse, error)

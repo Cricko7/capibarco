@@ -115,6 +115,50 @@ func TestServiceCreateAnimalUsesProvidedOwnerType(t *testing.T) {
 	require.Equal(t, "profile-kennel-1", animalClient.lastCreate.OwnerProfileId)
 }
 
+func TestServiceCreateConversationUsesCurrentPrincipal(t *testing.T) {
+	chatClient := &fakeChat{}
+	svc := NewService(Dependencies{
+		Auth:          &fakeAuth{},
+		Chat:          chatClient,
+		GuestSessions: domain.NewGuestSessionCodec([]byte("secret"), time.Hour),
+		Clock:         fixedClock{},
+		Defaults:      Defaults{TenantID: "petmatch", MaxPageSize: 10},
+	})
+	ctx := WithPrincipal(context.Background(), Principal{ActorID: "profile-actor", TenantID: "tenant-1"})
+
+	_, err := svc.CreateConversation(ctx, CreateConversationInput{
+		TargetProfileID: "profile-target",
+		IdempotencyKey:  "idem-chat",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, chatClient.lastCreateConversation)
+	require.Equal(t, "profile-actor", chatClient.lastCreateConversation.AdopterProfileId)
+	require.Equal(t, "profile-target", chatClient.lastCreateConversation.OwnerProfileId)
+	require.Empty(t, chatClient.lastCreateConversation.MatchId)
+	require.Empty(t, chatClient.lastCreateConversation.AnimalId)
+}
+
+func TestServiceListOwnerAnimalsUsesRequestedProfile(t *testing.T) {
+	animalClient := &fakeAnimal{}
+	svc := NewService(Dependencies{
+		Auth:          &fakeAuth{},
+		Animal:        animalClient,
+		GuestSessions: domain.NewGuestSessionCodec([]byte("secret"), time.Hour),
+		Clock:         fixedClock{},
+		Defaults:      Defaults{TenantID: "petmatch", MaxPageSize: 10},
+	})
+	ctx := WithPrincipal(context.Background(), Principal{ActorID: "viewer-1", TenantID: "tenant-1"})
+
+	_, err := svc.ListOwnerAnimals(ctx, ListOwnerAnimalsInput{
+		OwnerProfileID: "owner-1",
+		PageSize:       99,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, animalClient.lastListOwner)
+	require.Equal(t, "owner-1", animalClient.lastListOwner.OwnerProfileId)
+	require.Equal(t, int32(10), animalClient.lastListOwner.Page.PageSize)
+}
+
 type fixedClock struct{}
 
 var fixedNow = time.Date(2026, 4, 18, 10, 0, 0, 0, time.UTC)
@@ -158,7 +202,10 @@ func (fakeMatching) RecordSwipe(context.Context, *matchingv1.RecordSwipeRequest)
 	return nil, errors.New("should not be called")
 }
 
-type fakeAnimal struct{ lastCreate *animalv1.CreateAnimalRequest }
+type fakeAnimal struct {
+	lastCreate    *animalv1.CreateAnimalRequest
+	lastListOwner *animalv1.ListOwnerAnimalsRequest
+}
 
 func (fakeAnimal) GetAnimal(context.Context, string) (*animalv1.AnimalProfile, error) {
 	return nil, nil
@@ -170,9 +217,19 @@ func (f *fakeAnimal) CreateAnimal(_ context.Context, req *animalv1.CreateAnimalR
 func (fakeAnimal) AddPhoto(context.Context, string, *commonv1.Photo, string) (*animalv1.AnimalProfile, error) {
 	return nil, nil
 }
+func (f *fakeAnimal) ListOwnerAnimals(_ context.Context, req *animalv1.ListOwnerAnimalsRequest) (*animalv1.ListOwnerAnimalsResponse, error) {
+	f.lastListOwner = req
+	return &animalv1.ListOwnerAnimalsResponse{}, nil
+}
 
-type fakeChat struct{}
+type fakeChat struct {
+	lastCreateConversation *chatv1.CreateConversationRequest
+}
 
+func (f *fakeChat) CreateConversation(_ context.Context, req *chatv1.CreateConversationRequest) (*chatv1.CreateConversationResponse, error) {
+	f.lastCreateConversation = req
+	return &chatv1.CreateConversationResponse{Conversation: &chatv1.Conversation{ConversationId: "conversation-1"}}, nil
+}
 func (fakeChat) ListConversations(context.Context, *chatv1.ListConversationsRequest) (*chatv1.ListConversationsResponse, error) {
 	return nil, nil
 }

@@ -8,10 +8,12 @@ import '../../features/auth/presentation/auth_state.dart';
 import '../../features/auth/presentation/login_page.dart';
 import '../../features/auth/presentation/register_page.dart';
 import '../../features/auth/presentation/splash_page.dart';
+import '../../features/chat/presentation/chat_page.dart';
 import '../../features/discovery/presentation/discovery_page.dart';
 import '../../features/feed/presentation/feed_page.dart';
 import '../../features/notifications/presentation/notifications_page.dart';
 import '../../features/profile/presentation/profile_page.dart';
+import '../../features/profile/presentation/public_profile_page.dart';
 
 final _routerRefreshProvider = Provider<AuthRouterRefreshNotifier>((ref) {
   final notifier = AuthRouterRefreshNotifier();
@@ -100,6 +102,19 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
         ],
+      ),
+      GoRoute(
+        path: '/profiles/:profileId',
+        builder: (context, state) => PublicProfilePage(
+          profileId: state.pathParameters['profileId'] ?? '',
+        ),
+      ),
+      GoRoute(
+        path: '/chat/:conversationId',
+        builder: (context, state) => ChatPage(
+          conversationId: state.pathParameters['conversationId'] ?? '',
+          title: state.uri.queryParameters['title'] ?? '',
+        ),
       ),
     ],
   );

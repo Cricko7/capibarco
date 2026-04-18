@@ -214,6 +214,21 @@ func (s *Service) UploadAnimalPhoto(ctx context.Context, input UploadAnimalPhoto
 	return out, nil
 }
 
+// ListOwnerAnimals returns public animal cards for a given profile.
+func (s *Service) ListOwnerAnimals(ctx context.Context, input ListOwnerAnimalsInput) (*animalv1.ListOwnerAnimalsResponse, error) {
+	if _, err := requiredPrincipal(ctx); err != nil {
+		return nil, err
+	}
+	if input.OwnerProfileID == "" {
+		return nil, fmt.Errorf("%w: owner_profile_id is required", ErrInvalidInput)
+	}
+	return s.deps.Animal.ListOwnerAnimals(ctx, &animalv1.ListOwnerAnimalsRequest{
+		OwnerProfileId: input.OwnerProfileID,
+		Statuses:       input.Statuses,
+		Page:           &commonv1.PageRequest{PageSize: capPageSize(input.PageSize, 20, s.deps.Defaults.MaxPageSize), PageToken: input.PageToken},
+	})
+}
+
 // SwipeAnimal records a mobile swipe through matching-service.
 func (s *Service) SwipeAnimal(ctx context.Context, input SwipeAnimalInput) (SwipeAnimalOutput, error) {
 	principal, err := requiredPrincipal(ctx)
@@ -237,6 +252,30 @@ func (s *Service) SwipeAnimal(ctx context.Context, input SwipeAnimalInput) (Swip
 		return SwipeAnimalOutput{}, fmt.Errorf("record swipe: %w", err)
 	}
 	return SwipeAnimalOutput{Swipe: out.Swipe, Match: out.Match, ConversationID: out.ConversationId}, nil
+}
+
+// CreateConversation opens or returns an idempotent direct chat.
+func (s *Service) CreateConversation(ctx context.Context, input CreateConversationInput) (*chatv1.CreateConversationResponse, error) {
+	principal, err := requiredPrincipal(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if input.IdempotencyKey == "" {
+		return nil, ErrIdempotencyKeyRequired
+	}
+	if input.TargetProfileID == "" {
+		return nil, fmt.Errorf("%w: target_profile_id is required", ErrInvalidInput)
+	}
+	if input.TargetProfileID == principal.ActorID {
+		return nil, fmt.Errorf("%w: cannot create conversation with self", ErrInvalidInput)
+	}
+	return s.deps.Chat.CreateConversation(ctx, &chatv1.CreateConversationRequest{
+		MatchId:          input.MatchID,
+		AnimalId:         input.AnimalID,
+		AdopterProfileId: principal.ActorID,
+		OwnerProfileId:   input.TargetProfileID,
+		IdempotencyKey:   input.IdempotencyKey,
+	})
 }
 
 // ListConversations lists chat conversations for the current actor.

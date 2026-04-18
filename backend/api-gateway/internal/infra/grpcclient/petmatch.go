@@ -67,6 +67,14 @@ func (c *AnimalClient) AddPhoto(ctx context.Context, animalID string, photo *com
 	return out.Animal, nil
 }
 
+func (c *AnimalClient) ListOwnerAnimals(ctx context.Context, req *animalv1.ListOwnerAnimalsRequest) (*animalv1.ListOwnerAnimalsResponse, error) {
+	return resilience.Do(ctx, c.res, func(ctx context.Context) (*animalv1.ListOwnerAnimalsResponse, error) {
+		ctx, cancel := context.WithTimeout(ctx, c.timeout)
+		defer cancel()
+		return c.client.ListOwnerAnimals(ctx, req)
+	})
+}
+
 // FeedClient wraps feed-service.
 type FeedClient struct {
 	client  feedv1.FeedServiceClient
@@ -114,6 +122,14 @@ type ChatClient struct {
 
 func NewChatClient(conn *grpc.ClientConn, timeout time.Duration, res *resilience.Client) *ChatClient {
 	return &ChatClient{client: chatv1.NewChatServiceClient(conn), timeout: timeout, res: res}
+}
+
+func (c *ChatClient) CreateConversation(ctx context.Context, req *chatv1.CreateConversationRequest) (*chatv1.CreateConversationResponse, error) {
+	return resilience.Do(ctx, c.res, func(ctx context.Context) (*chatv1.CreateConversationResponse, error) {
+		ctx, cancel := context.WithTimeout(ctx, c.timeout)
+		defer cancel()
+		return c.client.CreateConversation(ctx, req)
+	})
 }
 
 func (c *ChatClient) ListConversations(ctx context.Context, req *chatv1.ListConversationsRequest) (*chatv1.ListConversationsResponse, error) {

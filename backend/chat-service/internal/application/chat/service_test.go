@@ -47,6 +47,29 @@ func TestServiceCreateConversationIsIdempotent(t *testing.T) {
 	}
 }
 
+func TestServiceCreateConversationAllowsDirectProfileChat(t *testing.T) {
+	ctx := context.Background()
+	clock := fixedClock{now: time.Date(2026, 4, 17, 12, 0, 0, 0, time.UTC)}
+	repo := newMemoryRepo()
+	ids := fixedIDs{"conversation-1", "event-1"}
+	service := appchat.NewService(repo, repo, repo, repo, clock, &ids)
+
+	conversation, err := service.CreateConversation(ctx, appchat.CreateConversationInput{
+		AdopterProfileID: "adopter",
+		OwnerProfileID:   "owner",
+		IdempotencyKey:   "idem-direct-conversation",
+	})
+	if err != nil {
+		t.Fatalf("CreateConversation() error = %v", err)
+	}
+	if conversation.MatchID != "" {
+		t.Fatalf("MatchID = %q, want empty", conversation.MatchID)
+	}
+	if conversation.AnimalID != "" {
+		t.Fatalf("AnimalID = %q, want empty", conversation.AnimalID)
+	}
+}
+
 func TestServiceSendMessageRejectsArchivedConversation(t *testing.T) {
 	ctx := context.Background()
 	repo := newMemoryRepo()

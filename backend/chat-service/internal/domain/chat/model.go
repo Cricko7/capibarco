@@ -109,8 +109,6 @@ func NewConversation(cmd CreateConversationCommand) (Conversation, error) {
 		return Conversation{}, fmt.Errorf("create conversation: %w", ErrMissingIdempotencyKey)
 	}
 	if strings.TrimSpace(cmd.ID) == "" ||
-		strings.TrimSpace(cmd.MatchID) == "" ||
-		strings.TrimSpace(cmd.AnimalID) == "" ||
 		strings.TrimSpace(cmd.AdopterProfileID) == "" ||
 		strings.TrimSpace(cmd.OwnerProfileID) == "" {
 		return Conversation{}, fmt.Errorf("create conversation: %w", ErrInvalidParticipant)

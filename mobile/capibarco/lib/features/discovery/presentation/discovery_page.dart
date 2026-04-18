@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../app/localization/app_localizations.dart';
 import '../../../shared/presentation/page_shell.dart';
@@ -112,56 +113,86 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage> {
                 (profile) => Padding(
                   padding: const EdgeInsets.only(bottom: 16),
                   child: SoftCard(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        CircleAvatar(
-                          radius: 30,
-                          backgroundColor: Theme.of(
-                            context,
-                          ).colorScheme.primaryContainer,
-                          backgroundImage: profile.avatarUrl.isNotEmpty
-                              ? NetworkImage(profile.avatarUrl)
-                              : null,
-                          child: profile.avatarUrl.isEmpty
-                              ? const Icon(Icons.person_rounded)
-                              : null,
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
+                    padding: EdgeInsets.zero,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(28),
+                        onTap: () => context.push('/profiles/${profile.id}'),
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: <Widget>[
-                              Text(
-                                profile.displayName,
-                                style: Theme.of(context).textTheme.titleLarge
-                                    ?.copyWith(fontWeight: FontWeight.w800),
+                              CircleAvatar(
+                                radius: 30,
+                                backgroundColor: Theme.of(
+                                  context,
+                                ).colorScheme.primaryContainer,
+                                backgroundImage: profile.avatarUrl.isNotEmpty
+                                    ? NetworkImage(profile.avatarUrl)
+                                    : null,
+                                child: profile.avatarUrl.isEmpty
+                                    ? const Icon(Icons.person_rounded)
+                                    : null,
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${profile.typeLabel}${profile.city.isNotEmpty ? ' · ${profile.city}' : ''}',
-                                style: Theme.of(context).textTheme.bodyMedium,
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                profile.bio.isEmpty
-                                    ? 'No profile bio yet.'
-                                    : profile.bio,
-                              ),
-                              const SizedBox(height: 10),
-                              Row(
-                                children: <Widget>[
-                                  const Icon(Icons.star_rounded, size: 18),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '${profile.averageRating.toStringAsFixed(1)} (${profile.reviewsCount})',
-                                  ),
-                                ],
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: <Widget>[
+                                    Text(
+                                      profile.displayName,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleLarge
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '${profile.typeLabel}${profile.city.isNotEmpty ? ' В· ${profile.city}' : ''}',
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.bodyMedium,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      profile.bio.isEmpty
+                                          ? 'No profile bio yet.'
+                                          : profile.bio,
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Row(
+                                      children: <Widget>[
+                                        const Icon(
+                                          Icons.star_rounded,
+                                          size: 18,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          '${profile.averageRating.toStringAsFixed(1)} (${profile.reviewsCount})',
+                                        ),
+                                        const Spacer(),
+                                        Text(
+                                          l10n.openProfile,
+                                          style: TextStyle(
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.primary,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
                             ],
                           ),
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 ),

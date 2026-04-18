@@ -1,5 +1,7 @@
 import '../../../../core/network/rest_service_client.dart';
+import '../dtos/profile_animal_card_dto.dart';
 import '../dtos/profile_dto.dart';
+import '../dtos/profile_review_dto.dart';
 
 class ProfileApiClient {
   const ProfileApiClient(this._client);
@@ -42,5 +44,29 @@ class ProfileApiClient {
       },
     );
     return UserProfileDto.fromJson(response);
+  }
+
+  Future<List<ProfileReviewDto>> getReviews(String profileId) async {
+    final response = await _client.getMap(
+      '/profiles/$profileId/reviews',
+      queryParameters: const <String, dynamic>{'page_size': 20},
+    );
+    final items = response['reviews'] as List<dynamic>? ?? const <dynamic>[];
+    return items
+        .map((item) => ProfileReviewDto.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<List<ProfileAnimalCardDto>> getProfileAnimals(String profileId) async {
+    final response = await _client.getMap(
+      '/profiles/$profileId/animals',
+      queryParameters: const <String, dynamic>{'page_size': 20},
+    );
+    final items = response['animals'] as List<dynamic>? ?? const <dynamic>[];
+    return items
+        .map(
+          (item) => ProfileAnimalCardDto.fromJson(item as Map<String, dynamic>),
+        )
+        .toList();
   }
 }

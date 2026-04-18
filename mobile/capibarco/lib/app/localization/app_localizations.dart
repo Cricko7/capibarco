@@ -80,6 +80,22 @@ class AppLocalizations {
       'paymentUrl': 'Payment URL',
       'clientSecret': 'Client secret',
       'close': 'Close',
+      'chat': 'Chat',
+      'startChat': 'Start chat',
+      'comments': 'Comments',
+      'noComments': 'No comments yet.',
+      'profilePets': 'Pet cards',
+      'noProfilePets': 'This profile has no published pets yet.',
+      'openProfile': 'Open profile',
+      'messageHint': 'Write a message...',
+      'send': 'Send',
+      'chatReady': 'Chat is ready.',
+      'chatUnavailable': 'Unable to open chat right now.',
+      'publicProfileSubtitle': 'Public profile, reviews, and active pet cards.',
+      'reviewsLabel': 'reviews',
+      'aboutProfile': 'About profile',
+      'profileActions': 'Actions',
+      'publishedPets': 'Published pets',
     },
     'ru': {
       'appTitle': 'Capibarco',
@@ -142,6 +158,22 @@ class AppLocalizations {
       'paymentUrl': 'Payment URL',
       'clientSecret': 'Client secret',
       'close': 'Close',
+      'chat': 'Чат',
+      'startChat': 'Начать чат',
+      'comments': 'Комментарии',
+      'noComments': 'Комментариев пока нет.',
+      'profilePets': 'Карточки питомцев',
+      'noProfilePets': 'У этого профиля пока нет опубликованных питомцев.',
+      'openProfile': 'Открыть профиль',
+      'messageHint': 'Напишите сообщение...',
+      'send': 'Отправить',
+      'chatReady': 'Чат готов.',
+      'chatUnavailable': 'Не удалось открыть чат.',
+      'publicProfileSubtitle': 'Публичный профиль, отзывы и карточки питомцев.',
+      'reviewsLabel': 'отзывов',
+      'aboutProfile': 'О профиле',
+      'profileActions': 'Действия',
+      'publishedPets': 'Опубликованные питомцы',
     },
   };
 
@@ -209,6 +241,22 @@ class AppLocalizations {
   String get paymentUrl => _text('paymentUrl');
   String get clientSecret => _text('clientSecret');
   String get close => _text('close');
+  String get chat => _text('chat');
+  String get startChat => _text('startChat');
+  String get comments => _text('comments');
+  String get noComments => _text('noComments');
+  String get profilePets => _text('profilePets');
+  String get noProfilePets => _text('noProfilePets');
+  String get openProfile => _text('openProfile');
+  String get messageHint => _text('messageHint');
+  String get send => _text('send');
+  String get chatReady => _text('chatReady');
+  String get chatUnavailable => _text('chatUnavailable');
+  String get publicProfileSubtitle => _text('publicProfileSubtitle');
+  String get reviewsLabel => _text('reviewsLabel');
+  String get aboutProfile => _text('aboutProfile');
+  String get profileActions => _text('profileActions');
+  String get publishedPets => _text('publishedPets');
 }
 
 class _AppLocalizationsDelegate
