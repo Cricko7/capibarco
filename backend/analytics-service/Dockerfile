@@ -11,6 +11,6 @@ WORKDIR /app
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=build /out/analytics-service /app/analytics-service
 COPY configs /app/configs
-EXPOSE 18088
+EXPOSE 18088 19088
 USER nonroot:nonroot
 ENTRYPOINT ["/app/analytics-service","--config","/app/configs/config.yaml"]

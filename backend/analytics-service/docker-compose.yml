@@ -10,14 +10,32 @@ services:
     volumes:
       - analytics_pg_data:/var/lib/postgresql/data
 
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.1
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    depends_on:
+      - zookeeper
+    ports:
+      - "19092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:19092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
   analytics-migrate:
     image: migrate/migrate:v4.17.1
     depends_on:
       - analytics-postgres
     volumes:
       - ./migrations:/migrations:ro
-    command:
-      ["-path", "/migrations", "-database", "postgres://analytics:analytics@analytics-postgres:5432/analytics?sslmode=disable", "up"]
+    command: ["-path", "/migrations", "-database", "postgres://analytics:analytics@analytics-postgres:5432/analytics?sslmode=disable", "up"]
 
   analytics-service:
     build: .
@@ -26,10 +44,14 @@ services:
         condition: service_started
       analytics-migrate:
         condition: service_completed_successfully
+      kafka:
+        condition: service_started
     ports:
       - "18088:18088"
+      - "19088:19088"
     environment:
       ANALYTICS_POSTGRES_DSN: postgres://analytics:analytics@analytics-postgres:5432/analytics?sslmode=disable
+      ANALYTICS_KAFKA_BROKERS_0: kafka:9092
       ANALYTICS_APP_ENV: local
 
 volumes:
