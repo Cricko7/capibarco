@@ -97,6 +97,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                     path: 'animals/new',
                     builder: (context, state) => const AnimalCreatePage(),
                   ),
+                  GoRoute(
+                    path: 'animals/:animalId/edit',
+                    builder: (context, state) => AnimalCreatePage(
+                      animalId: state.pathParameters['animalId'],
+                    ),
+                  ),
                 ],
               ),
             ],

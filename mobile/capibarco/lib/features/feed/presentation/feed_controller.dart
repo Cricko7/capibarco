@@ -73,6 +73,8 @@ final feedControllerProvider = NotifierProvider<FeedController, FeedState>(
 
 class FeedController extends Notifier<FeedState> {
   FeedRepositoryImpl get _repository => ref.read(feedRepositoryProvider);
+  String? get _currentProfileId =>
+      ref.read(authControllerProvider.notifier).currentProfileId;
 
   @override
   FeedState build() => const FeedState();
@@ -82,7 +84,7 @@ class FeedController extends Notifier<FeedState> {
     try {
       final page = await _repository.getFeed();
       state = FeedState(
-        cards: page.cards,
+        cards: _filterCards(page.cards),
         nextPageToken: page.nextPageToken,
         feedSessionId: page.feedSessionId,
         isStale: page.isStale,
@@ -100,8 +102,9 @@ class FeedController extends Notifier<FeedState> {
     state = state.copyWith(isLoadingMore: true, clearError: true);
     try {
       final page = await _repository.getFeed(pageToken: state.nextPageToken);
+      final mergedCards = _mergeCards(state.cards, _filterCards(page.cards));
       state = state.copyWith(
-        cards: <FeedCardEntity>[...state.cards, ...page.cards],
+        cards: mergedCards,
         nextPageToken: page.nextPageToken,
         feedSessionId: page.feedSessionId.isEmpty
             ? state.feedSessionId
@@ -114,6 +117,26 @@ class FeedController extends Notifier<FeedState> {
         isLoadingMore: false,
         errorMessage: error.toString(),
       );
+    }
+  }
+
+  Future<void> refreshRealtime() async {
+    if (state.isLoading || state.isLoadingMore) {
+      return;
+    }
+    try {
+      final page = await _repository.getFeed();
+      state = state.copyWith(
+        cards: _mergeCards(_filterCards(page.cards), state.cards),
+        nextPageToken: page.nextPageToken,
+        feedSessionId: page.feedSessionId.isEmpty
+            ? state.feedSessionId
+            : page.feedSessionId,
+        isStale: page.isStale,
+        clearError: true,
+      );
+    } catch (_) {
+      // Keep the current cards when a background refresh fails.
     }
   }
 
@@ -135,7 +158,7 @@ class FeedController extends Notifier<FeedState> {
           : card.ownerProfileId,
       liked: liked,
       feedCardId: card.id,
-      feedSessionId: state.feedSessionId.isEmpty
+      feedSessionId: card.feedSessionId.isNotEmpty
           ? card.feedSessionId
           : state.feedSessionId,
     );
@@ -145,5 +168,35 @@ class FeedController extends Notifier<FeedState> {
     if (updated.length < 3 && state.nextPageToken.isNotEmpty) {
       await loadMore();
     }
+  }
+
+  List<FeedCardEntity> _filterCards(List<FeedCardEntity> cards) {
+    final currentProfileId = _currentProfileId;
+    return cards
+        .where(
+          (card) =>
+              currentProfileId == null ||
+              currentProfileId.isEmpty ||
+              card.ownerProfileId != currentProfileId,
+        )
+        .toList();
+  }
+
+  List<FeedCardEntity> _mergeCards(
+    List<FeedCardEntity> primary,
+    List<FeedCardEntity> secondary,
+  ) {
+    final merged = <FeedCardEntity>[];
+    final seenAnimalIds = <String>{};
+
+    for (final card in <FeedCardEntity>[...primary, ...secondary]) {
+      final key = card.animalId.isNotEmpty ? card.animalId : card.id;
+      if (!seenAnimalIds.add(key)) {
+        continue;
+      }
+      merged.add(card);
+    }
+
+    return merged;
   }
 }

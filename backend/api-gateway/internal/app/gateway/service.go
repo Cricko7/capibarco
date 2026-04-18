@@ -202,6 +202,37 @@ func (s *Service) CreateAnimal(ctx context.Context, input CreateAnimalInput) (*a
 	return out, nil
 }
 
+// UpdateAnimal patches an owned animal profile.
+func (s *Service) UpdateAnimal(ctx context.Context, input UpdateAnimalInput) (*animalv1.AnimalProfile, error) {
+	if _, err := requiredPrincipal(ctx); err != nil {
+		return nil, err
+	}
+	if input.AnimalID == "" {
+		return nil, fmt.Errorf("%w: animal_id is required", ErrInvalidInput)
+	}
+	if input.Animal == nil {
+		return nil, fmt.Errorf("%w: animal is required", ErrInvalidInput)
+	}
+	if len(input.UpdateMask) == 0 {
+		return nil, fmt.Errorf("%w: update_mask is required", ErrInvalidInput)
+	}
+	if input.Animal.AnimalId == "" {
+		input.Animal.AnimalId = input.AnimalID
+	}
+	if input.Animal.AnimalId != input.AnimalID {
+		return nil, fmt.Errorf("%w: animal_id mismatch", ErrInvalidInput)
+	}
+	out, err := s.deps.Animal.UpdateAnimal(ctx, &animalv1.UpdateAnimalRequest{
+		AnimalId:   input.AnimalID,
+		Animal:     input.Animal,
+		UpdateMask: &fieldmaskpb.FieldMask{Paths: input.UpdateMask},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("update animal: %w", err)
+	}
+	return out, nil
+}
+
 // PublishAnimal publishes an existing draft animal profile.
 func (s *Service) PublishAnimal(ctx context.Context, animalID string) (*animalv1.AnimalProfile, error) {
 	if _, err := requiredPrincipal(ctx); err != nil {

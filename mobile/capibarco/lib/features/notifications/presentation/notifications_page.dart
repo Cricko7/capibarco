@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -18,12 +20,26 @@ class NotificationsPage extends ConsumerStatefulWidget {
 }
 
 class _NotificationsPageState extends ConsumerState<NotificationsPage> {
+  Timer? _refreshTimer;
+
   @override
   void initState() {
     super.initState();
     Future<void>.microtask(
       () => ref.read(notificationsControllerProvider.notifier).load(),
     );
+    _refreshTimer = Timer.periodic(const Duration(seconds: 6), (_) {
+      if (!mounted) {
+        return;
+      }
+      ref.read(notificationsControllerProvider.notifier).refreshRealtime();
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -57,6 +73,12 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                 StatusView.message(
                   message: state.errorMessage!,
                   icon: Icons.error_outline_rounded,
+                  action: FilledButton(
+                    onPressed: () => ref
+                        .read(notificationsControllerProvider.notifier)
+                        .load(),
+                    child: Text(l10n.retry),
+                  ),
                 )
               else if (state.items.isEmpty)
                 StatusView.message(

@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import '../../../../core/error/error_mapper.dart';
+import '../../domain/entities/animal_editor.dart';
 import '../../domain/entities/animal_listing.dart';
 import '../datasources/animals_remote_data_source.dart';
 
@@ -28,6 +29,7 @@ class AnimalsRepositoryImpl {
     required bool vaccinated,
     required bool sterilized,
     required String city,
+    String? idempotencyKey,
   }) async {
     try {
       final animal = await _remoteDataSource.createAnimal(
@@ -45,6 +47,51 @@ class AnimalsRepositoryImpl {
         sterilized: sterilized,
         status: 'ANIMAL_STATUS_DRAFT',
         visibility: 'VISIBILITY_PRIVATE',
+        city: city,
+        idempotencyKey: idempotencyKey,
+      );
+      return animal.toDomain();
+    } catch (error) {
+      throw _errorMapper.map(error);
+    }
+  }
+
+  Future<AnimalEditorEntity> getAnimal({required String animalId}) async {
+    try {
+      final animal = await _remoteDataSource.getAnimal(animalId: animalId);
+      return animal.toDomain();
+    } catch (error) {
+      throw _errorMapper.map(error);
+    }
+  }
+
+  Future<AnimalListingEntity> updateAnimalDraft({
+    required String animalId,
+    required String name,
+    required String species,
+    required String breed,
+    required String sex,
+    required String size,
+    required int ageMonths,
+    required String description,
+    required List<String> traits,
+    required bool vaccinated,
+    required bool sterilized,
+    required String city,
+  }) async {
+    try {
+      final animal = await _remoteDataSource.updateAnimal(
+        animalId: animalId,
+        name: name,
+        species: species,
+        breed: breed,
+        sex: sex,
+        size: size,
+        ageMonths: ageMonths,
+        description: description,
+        traits: traits,
+        vaccinated: vaccinated,
+        sterilized: sterilized,
         city: city,
       );
       return animal.toDomain();

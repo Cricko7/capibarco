@@ -68,6 +68,7 @@ class AnimalCreateController extends Notifier<AnimalCreateState> {
   AnimalCreateState build() => const AnimalCreateState();
 
   Future<bool> saveDraft({
+    String? animalId,
     required String name,
     required String species,
     required String breed,
@@ -80,7 +81,9 @@ class AnimalCreateController extends Notifier<AnimalCreateState> {
     required bool sterilized,
     XFile? photo,
     Uint8List? photoBytes,
+    String? createIdempotencyKey,
   }) => _submitAnimal(
+    animalId: animalId,
     name: name,
     species: species,
     breed: breed,
@@ -93,10 +96,12 @@ class AnimalCreateController extends Notifier<AnimalCreateState> {
     sterilized: sterilized,
     photo: photo,
     photoBytes: photoBytes,
+    createIdempotencyKey: createIdempotencyKey,
     publish: false,
   );
 
   Future<bool> publishAnimal({
+    String? animalId,
     required String name,
     required String species,
     required String breed,
@@ -109,8 +114,10 @@ class AnimalCreateController extends Notifier<AnimalCreateState> {
     required bool sterilized,
     XFile? photo,
     Uint8List? photoBytes,
+    bool hasExistingPhoto = false,
+    String? createIdempotencyKey,
   }) {
-    if (photo == null) {
+    if (photo == null && !hasExistingPhoto) {
       state = state.copyWith(
         errorMessage: 'Add at least one photo before publishing.',
         clearSuccess: true,
@@ -118,6 +125,7 @@ class AnimalCreateController extends Notifier<AnimalCreateState> {
       return Future<bool>.value(false);
     }
     return _submitAnimal(
+      animalId: animalId,
       name: name,
       species: species,
       breed: breed,
@@ -130,11 +138,13 @@ class AnimalCreateController extends Notifier<AnimalCreateState> {
       sterilized: sterilized,
       photo: photo,
       photoBytes: photoBytes,
+      createIdempotencyKey: createIdempotencyKey,
       publish: true,
     );
   }
 
   Future<bool> _submitAnimal({
+    String? animalId,
     required String name,
     required String species,
     required String breed,
@@ -147,6 +157,7 @@ class AnimalCreateController extends Notifier<AnimalCreateState> {
     required bool sterilized,
     XFile? photo,
     Uint8List? photoBytes,
+    String? createIdempotencyKey,
     required bool publish,
   }) async {
     final profile = ref.read(profileControllerProvider).profile;
@@ -164,31 +175,47 @@ class AnimalCreateController extends Notifier<AnimalCreateState> {
     );
 
     try {
-      final animal = await _repository.createAnimalDraft(
-        ownerProfileId: profile.id,
-        ownerType: _mapOwnerType(profile.typeCode),
-        name: name,
-        species: species,
-        breed: breed,
-        sex: sex,
-        size: size,
-        ageMonths: ageMonths,
-        description: description,
-        traits: traits,
-        vaccinated: vaccinated,
-        sterilized: sterilized,
-        city: profile.city,
-      );
+      final targetAnimalId = animalId == null || animalId.isEmpty
+          ? (await _repository.createAnimalDraft(
+              ownerProfileId: profile.id,
+              ownerType: _mapOwnerType(profile.typeCode),
+              name: name,
+              species: species,
+              breed: breed,
+              sex: sex,
+              size: size,
+              ageMonths: ageMonths,
+              description: description,
+              traits: traits,
+              vaccinated: vaccinated,
+              sterilized: sterilized,
+              city: profile.city,
+              idempotencyKey: createIdempotencyKey,
+            )).id
+          : (await _repository.updateAnimalDraft(
+              animalId: animalId,
+              name: name,
+              species: species,
+              breed: breed,
+              sex: sex,
+              size: size,
+              ageMonths: ageMonths,
+              description: description,
+              traits: traits,
+              vaccinated: vaccinated,
+              sterilized: sterilized,
+              city: profile.city,
+            )).id;
       if (photo != null) {
         final bytes = photoBytes ?? await photo.readAsBytes();
         await _repository.uploadAnimalPhoto(
-          animalId: animal.id,
+          animalId: targetAnimalId,
           photoBytes: bytes,
           fileName: photo.name,
         );
       }
       if (publish) {
-        await _repository.publishAnimal(animalId: animal.id);
+        await _repository.publishAnimal(animalId: targetAnimalId);
       }
       state = state.copyWith(
         isSubmitting: false,

@@ -69,19 +69,30 @@ class NotificationsController extends Notifier<NotificationsState> {
   @override
   NotificationsState build() => const NotificationsState();
 
-  Future<void> load() async {
-    state = state.copyWith(isLoading: true, clearError: true);
+  Future<void> load({bool background = false}) async {
+    if (background && state.isLoading) {
+      return;
+    }
+    if (!background) {
+      state = state.copyWith(isLoading: true, clearError: true);
+    }
     try {
       final page = await _repository.listNotifications();
       state = state.copyWith(
         items: page.items,
         isLoading: false,
         isStale: page.isStale,
+        clearError: true,
       );
     } catch (error) {
+      if (background && state.items.isNotEmpty) {
+        return;
+      }
       state = state.copyWith(isLoading: false, errorMessage: error.toString());
     }
   }
+
+  Future<void> refreshRealtime() => load(background: true);
 
   Future<void> markAsRead(NotificationItemEntity item) async {
     await _repository.markAsRead(item.id);

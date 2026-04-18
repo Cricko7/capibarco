@@ -73,13 +73,15 @@ func TestServiceUpdateAppliesOnlyAllowedFieldMaskPaths(t *testing.T) {
 		AnimalID: created.ID,
 		Patch: animal.Profile{
 			Name:        "Mila",
+			Species:     animal.SpeciesDog,
 			Description: "Gentle cat",
 			Status:      animal.StatusArchived,
 		},
-		UpdateMask: []string{"name", "description"},
+		UpdateMask: []string{"name", "species", "description"},
 	})
 	require.NoError(t, err)
 	require.Equal(t, "Mila", updated.Name)
+	require.Equal(t, animal.SpeciesDog, updated.Species)
 	require.Equal(t, "Gentle cat", updated.Description)
 	require.Equal(t, animal.StatusDraft, updated.Status, "status must not be patched through general update")
 

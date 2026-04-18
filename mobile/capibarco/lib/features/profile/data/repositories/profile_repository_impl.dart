@@ -1,4 +1,5 @@
 import '../../../../core/error/error_mapper.dart';
+import '../../domain/entities/profile_animal_card.dart';
 import '../../domain/entities/user_profile.dart';
 import '../datasources/profile_remote_data_source.dart';
 
@@ -40,6 +41,17 @@ class ProfileRepositoryImpl {
       );
       final refreshed = await _remoteDataSource.getProfile(profileId);
       return refreshed.toDomain();
+    } catch (error) {
+      throw _errorMapper.map(error);
+    }
+  }
+
+  Future<List<ProfileAnimalCardEntity>> getProfileAnimals(
+    String profileId,
+  ) async {
+    try {
+      final animals = await _remoteDataSource.getProfileAnimals(profileId);
+      return animals.map((item) => item.toDomain()).toList();
     } catch (error) {
       throw _errorMapper.map(error);
     }

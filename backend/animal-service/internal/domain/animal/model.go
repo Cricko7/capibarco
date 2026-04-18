@@ -198,6 +198,8 @@ func (p *Profile) ApplyPatch(patch Profile, updateMask []string, actorID string,
 		switch path {
 		case "name":
 			p.Name = strings.TrimSpace(patch.Name)
+		case "species":
+			p.Species = patch.Species
 		case "breed":
 			p.Breed = strings.TrimSpace(patch.Breed)
 		case "sex":

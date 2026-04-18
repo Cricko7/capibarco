@@ -106,6 +106,7 @@ func New(cfg config.Config, app *gateway.Service, chat chatStreamer, notificatio
 	protected.GET("/v1/feed", s.getFeed)
 	protected.GET("/v1/animals/:animal_id", s.getAnimal)
 	protected.POST("/v1/animals", s.createAnimal)
+	protected.PATCH("/v1/animals/:animal_id", s.updateAnimal)
 	protected.POST("/v1/animals/:animal_id/publish", s.publishAnimal)
 	protected.POST("/v1/animals/:animal_id/photos", s.uploadAnimalPhoto)
 	protected.POST("/v1/animals/:animal_id", s.swipeAnimalColon)
@@ -270,6 +271,30 @@ func (s *Server) createAnimal(c *gin.Context) {
 		return
 	}
 	writeProto(c, http.StatusCreated, &animalv1.CreateAnimalResponse{Animal: out})
+}
+
+func (s *Server) updateAnimal(c *gin.Context) {
+	animal, updateMask, err := decodeUpdateAnimalBody(c)
+	if err != nil {
+		problem.Abort(c, err)
+		return
+	}
+	animalID := c.Param("animal_id")
+	if animal.GetAnimalId() != "" && animal.GetAnimalId() != animalID {
+		problem.Abort(c, fmt.Errorf("%w: animal_id mismatch", gateway.ErrInvalidInput))
+		return
+	}
+	animal.AnimalId = animalID
+	out, err := s.app.UpdateAnimal(c.Request.Context(), gateway.UpdateAnimalInput{
+		AnimalID:   animalID,
+		Animal:     animal,
+		UpdateMask: updateMask,
+	})
+	if err != nil {
+		problem.Abort(c, err)
+		return
+	}
+	writeProto(c, http.StatusOK, &animalv1.UpdateAnimalResponse{Animal: out})
 }
 
 func (s *Server) publishAnimal(c *gin.Context) {
@@ -686,6 +711,18 @@ func decodeUpdateProfileBody(c *gin.Context) (*userv1.UserProfile, []string, err
 	return profile, updateMask, nil
 }
 
+func decodeUpdateAnimalBody(c *gin.Context) (*animalv1.AnimalProfile, []string, error) {
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		return nil, nil, fmt.Errorf("%w: read body: %v", gateway.ErrInvalidInput, err)
+	}
+	animal, updateMask, err := decodeUpdateAnimalBodyBytes(body)
+	if err != nil {
+		return nil, nil, fmt.Errorf("%w: decode json: %v", gateway.ErrInvalidInput, err)
+	}
+	return animal, updateMask, nil
+}
+
 func decodeSwipeAnimalBody(c *gin.Context) (swipeAnimalJSON, error) {
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
@@ -716,6 +753,24 @@ func decodeSwipeAnimalBodyBytes(body []byte) (swipeAnimalJSON, error) {
 		return swipeAnimalJSON{}, err
 	}
 	return input, nil
+}
+
+func decodeUpdateAnimalBodyBytes(body []byte) (*animalv1.AnimalProfile, []string, error) {
+	var input struct {
+		Animal     json.RawMessage `json:"animal"`
+		UpdateMask []string        `json:"update_mask"`
+	}
+	if err := json.Unmarshal(body, &input); err != nil {
+		return nil, nil, err
+	}
+	if len(input.Animal) == 0 {
+		return nil, nil, errors.New("animal is required")
+	}
+	var animal animalv1.AnimalProfile
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(input.Animal, &animal); err != nil {
+		return nil, nil, err
+	}
+	return &animal, input.UpdateMask, nil
 }
 
 func decodeCreateDonationIntentBodyBytes(body []byte) (createDonationIntentJSON, error) {

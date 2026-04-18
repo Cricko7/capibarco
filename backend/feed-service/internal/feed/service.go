@@ -184,7 +184,7 @@ func (s *Service) GetFeed(ctx context.Context, req *feedv1.GetFeedRequest) (*fee
 	}
 
 	excluded := excludedAnimalIDs(req.Filter)
-	candidates = filterCandidates(candidates, req.Surface, excluded, seen)
+	candidates = filterCandidates(candidates, req.Principal, req.Surface, excluded, seen)
 	ranked := RankCandidates(candidates, s.ranking)
 	window, nextToken := paginate(ranked, offset, pageSize)
 
@@ -380,8 +380,9 @@ func stripPaidAdvancedFilters(filter *animalv1.AnimalFilter) {
 	filter.BoostedOnly = nil
 }
 
-func filterCandidates(candidates []Candidate, surface feedv1.FeedSurface, excluded map[string]struct{}, seen map[string]struct{}) []Candidate {
+func filterCandidates(candidates []Candidate, principal *commonv1.Principal, surface feedv1.FeedSurface, excluded map[string]struct{}, seen map[string]struct{}) []Candidate {
 	filtered := make([]Candidate, 0, len(candidates))
+	actorID := actorID(principal)
 	for _, candidate := range candidates {
 		if candidate.Animal == nil {
 			continue
@@ -394,6 +395,9 @@ func filterCandidates(candidates []Candidate, surface feedv1.FeedSurface, exclud
 			continue
 		}
 		if candidate.OwnerHidden || candidate.OwnerBlocked {
+			continue
+		}
+		if actorID != "" && candidate.Animal.OwnerProfileId == actorID {
 			continue
 		}
 		if candidate.Animal.Status != animalv1.AnimalStatus_ANIMAL_STATUS_AVAILABLE {

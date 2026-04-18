@@ -7,6 +7,7 @@ import '../../../shared/presentation/page_shell.dart';
 import '../../../shared/presentation/section_header.dart';
 import '../../../shared/presentation/soft_card.dart';
 import '../../../shared/presentation/status_view.dart';
+import '../../animals/presentation/animal_create_controller.dart';
 import '../../auth/presentation/auth_controller.dart';
 import 'profile_controller.dart';
 
@@ -48,7 +49,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 message: state.errorMessage!,
                 icon: Icons.error_outline_rounded,
               )
-            else if (state.profile != null)
+            else if (state.profile != null) ...<Widget>[
               SoftCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -140,7 +141,14 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     ),
                     const SizedBox(height: 12),
                     FilledButton.icon(
-                      onPressed: () => context.push('/profile/animals/new'),
+                      onPressed: () async {
+                        await context.push('/profile/animals/new');
+                        if (context.mounted) {
+                          await ref
+                              .read(profileControllerProvider.notifier)
+                              .load();
+                        }
+                      },
                       icon: const Icon(Icons.pets_rounded),
                       label: Text(l10n.createPetCta),
                     ),
@@ -154,6 +162,140 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   ],
                 ),
               ),
+              const SizedBox(height: 16),
+              SectionHeader(
+                title: l10n.profilePets,
+                subtitle: '${state.animals.length} pets in your workspace',
+              ),
+              const SizedBox(height: 12),
+              if (state.animals.isEmpty)
+                SoftCard(child: Text(l10n.noProfilePets))
+              else
+                ...state.animals.map(
+                  (animal) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: SoftCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(20),
+                                child: SizedBox(
+                                  width: 88,
+                                  height: 88,
+                                  child: animal.photoUrl.isEmpty
+                                      ? DecoratedBox(
+                                          decoration: BoxDecoration(
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.primaryContainer,
+                                          ),
+                                          child: const Icon(Icons.pets_rounded),
+                                        )
+                                      : Image.network(
+                                          animal.photoUrl,
+                                          fit: BoxFit.cover,
+                                        ),
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: <Widget>[
+                                    Text(
+                                      animal.name,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      [
+                                        animal.speciesLabel,
+                                        if (animal.breed.isNotEmpty)
+                                          animal.breed,
+                                        if (animal.city.isNotEmpty) animal.city,
+                                      ].join(' · '),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    DecoratedBox(
+                                      decoration: BoxDecoration(
+                                        color: animal.isDraft
+                                            ? Theme.of(
+                                                context,
+                                              ).colorScheme.tertiaryContainer
+                                            : Theme.of(
+                                                context,
+                                              ).colorScheme.secondaryContainer,
+                                        borderRadius: BorderRadius.circular(
+                                          999,
+                                        ),
+                                      ),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 6,
+                                        ),
+                                        child: Text(
+                                          animal.statusLabel.isEmpty
+                                              ? 'draft'
+                                              : animal.statusLabel,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (animal.isDraft) ...<Widget>[
+                            const SizedBox(height: 14),
+                            Row(
+                              children: <Widget>[
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: () async {
+                                      await context.push(
+                                        '/profile/animals/${animal.id}/edit',
+                                      );
+                                      if (context.mounted) {
+                                        await ref
+                                            .read(
+                                              profileControllerProvider
+                                                  .notifier,
+                                            )
+                                            .load();
+                                      }
+                                    },
+                                    icon: const Icon(Icons.edit_rounded),
+                                    label: const Text('Edit draft'),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: FilledButton.tonalIcon(
+                                    onPressed: () =>
+                                        _publishDraft(context, ref, animal.id),
+                                    icon: const Icon(Icons.publish_rounded),
+                                    label: const Text('Publish'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ],
         ),
       ),
@@ -274,5 +416,31 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   String _displayNameFallback(String email) {
     final localPart = email.split('@').first.trim();
     return localPart.isEmpty ? 'New profile' : localPart;
+  }
+
+  Future<void> _publishDraft(
+    BuildContext context,
+    WidgetRef ref,
+    String animalId,
+  ) async {
+    try {
+      await ref
+          .read(animalsRepositoryProvider)
+          .publishAnimal(animalId: animalId);
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Draft published')));
+      await ref.read(profileControllerProvider.notifier).load();
+    } catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    }
   }
 }

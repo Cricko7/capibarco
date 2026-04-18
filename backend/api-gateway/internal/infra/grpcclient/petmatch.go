@@ -55,6 +55,18 @@ func (c *AnimalClient) CreateAnimal(ctx context.Context, req *animalv1.CreateAni
 	return out.Animal, nil
 }
 
+func (c *AnimalClient) UpdateAnimal(ctx context.Context, req *animalv1.UpdateAnimalRequest) (*animalv1.AnimalProfile, error) {
+	out, err := resilience.Do(ctx, c.res, func(ctx context.Context) (*animalv1.UpdateAnimalResponse, error) {
+		ctx, cancel := context.WithTimeout(ctx, c.timeout)
+		defer cancel()
+		return c.client.UpdateAnimal(ctx, req)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out.Animal, nil
+}
+
 func (c *AnimalClient) PublishAnimal(ctx context.Context, animalID string) (*animalv1.AnimalProfile, error) {
 	out, err := resilience.Do(ctx, c.res, func(ctx context.Context) (*animalv1.PublishAnimalResponse, error) {
 		ctx, cancel := context.WithTimeout(ctx, c.timeout)

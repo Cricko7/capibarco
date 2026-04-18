@@ -63,6 +63,22 @@ func TestDecodeUpdateProfileBodyAcceptsStringProfileType(t *testing.T) {
 	}
 }
 
+func TestDecodeUpdateAnimalBodyAcceptsWrappedSnakeCaseAnimal(t *testing.T) {
+	animal, mask, err := decodeUpdateAnimalBodyBytes([]byte(`{"animal":{"name":"Mila","sex":"ANIMAL_SEX_FEMALE","size":"ANIMAL_SIZE_MEDIUM","species":"SPECIES_DOG","location":{"city":"Moscow"}},"update_mask":["name","location"]}`))
+	if err != nil {
+		t.Fatalf("decodeUpdateAnimalBodyBytes() error = %v", err)
+	}
+	if animal.GetName() != "Mila" {
+		t.Fatalf("name decoded as %q, want Mila", animal.GetName())
+	}
+	if animal.GetLocation().GetCity() != "Moscow" {
+		t.Fatalf("location.city decoded as %q, want Moscow", animal.GetLocation().GetCity())
+	}
+	if len(mask) != 2 || mask[0] != "name" || mask[1] != "location" {
+		t.Fatalf("update_mask decoded as %v, want [name location]", mask)
+	}
+}
+
 func TestDecodeSwipeAnimalBodyAcceptsStringDirection(t *testing.T) {
 	input, err := decodeSwipeAnimalBodyBytes([]byte(`{"owner_profile_id":"owner-1","direction":"SWIPE_DIRECTION_RIGHT"}`))
 	if err != nil {
@@ -193,6 +209,39 @@ func TestPublishAnimalRouteIsRegistered(t *testing.T) {
 	)
 
 	request := httptest.NewRequest(http.MethodPost, "/v1/animals/animal-1/publish", nil)
+	recorder := httptest.NewRecorder()
+
+	server.server.Handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d to confirm route is registered", recorder.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestUpdateAnimalRouteIsRegistered(t *testing.T) {
+	registry := prometheus.NewRegistry()
+	server := New(
+		config.Config{
+			HTTP: config.HTTPConfig{
+				MaxBodyBytes: 1 << 20,
+			},
+			Rate: config.RateConfig{
+				Window: time.Minute,
+			},
+		},
+		nil,
+		nil,
+		nil,
+		nil,
+		kafkaevents.NoopPublisher{},
+		nil,
+		registry,
+		metrics.New(registry),
+		slog.New(slog.NewTextHandler(io.Discard, nil)),
+	)
+
+	request := httptest.NewRequest(http.MethodPatch, "/v1/animals/animal-1", bytes.NewBufferString(`{"animal":{"name":"Mila"},"update_mask":["name"]}`))
+	request.Header.Set("Content-Type", "application/json")
 	recorder := httptest.NewRecorder()
 
 	server.server.Handler.ServeHTTP(recorder, request)

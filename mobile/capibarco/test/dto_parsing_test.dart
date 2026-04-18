@@ -1,5 +1,7 @@
 import 'package:capibarco/features/feed/data/dtos/feed_dto.dart';
 import 'package:capibarco/features/notifications/data/dtos/notification_dto.dart';
+import 'package:capibarco/features/profile/data/dtos/profile_animal_card_dto.dart';
+import 'package:capibarco/features/animals/data/dtos/animal_editor_dto.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -41,5 +43,51 @@ void main() {
 
     expect(dto.type, 'NOTIFICATION_TYPE_MATCH_CREATED');
     expect(dto.status, 'NOTIFICATION_STATUS_DELIVERED');
+  });
+
+  test(
+    'ProfileAnimalCardDto keeps draft status from numeric gateway payloads',
+    () {
+      final dto = ProfileAnimalCardDto.fromJson(<String, dynamic>{
+        'animal_id': 'animal-1',
+        'name': 'Mila',
+        'species': 1,
+        'status': 1,
+        'photos': <Map<String, dynamic>>[],
+        'location': <String, dynamic>{'city': 'Moscow'},
+      });
+
+      expect(dto.statusCode, 'ANIMAL_STATUS_DRAFT');
+      expect(dto.status, 'draft');
+    },
+  );
+
+  test('AnimalEditorDto accepts numeric enums for editable draft payloads', () {
+    final dto = AnimalEditorDto.fromJson(<String, dynamic>{
+      'animal': <String, dynamic>{
+        'animal_id': 'animal-1',
+        'name': 'Mila',
+        'species': 2,
+        'sex': 2,
+        'size': 3,
+        'age_months': 14,
+        'description': 'Gentle cat',
+        'traits': <dynamic>['calm', 'friendly'],
+        'vaccinated': 1,
+        'sterilized': 0,
+        'status': 1,
+        'location': <String, dynamic>{'city': 'Moscow'},
+        'photos': <Map<String, dynamic>>[
+          <String, dynamic>{'url': 'https://example.test/cat.jpg'},
+        ],
+      },
+    });
+
+    expect(dto.species, 'SPECIES_CAT');
+    expect(dto.sex, 'ANIMAL_SEX_FEMALE');
+    expect(dto.size, 'ANIMAL_SIZE_LARGE');
+    expect(dto.status, 'ANIMAL_STATUS_DRAFT');
+    expect(dto.vaccinated, isTrue);
+    expect(dto.sterilized, isFalse);
   });
 }

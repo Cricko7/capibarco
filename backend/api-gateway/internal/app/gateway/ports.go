@@ -38,6 +38,7 @@ type FeedClient interface {
 type AnimalClient interface {
 	GetAnimal(context.Context, string) (*animalv1.AnimalProfile, error)
 	CreateAnimal(context.Context, *animalv1.CreateAnimalRequest) (*animalv1.AnimalProfile, error)
+	UpdateAnimal(context.Context, *animalv1.UpdateAnimalRequest) (*animalv1.AnimalProfile, error)
 	PublishAnimal(context.Context, string) (*animalv1.AnimalProfile, error)
 	AddPhoto(context.Context, string, *commonv1.Photo, string) (*animalv1.AnimalProfile, error)
 	ListOwnerAnimals(context.Context, *animalv1.ListOwnerAnimalsRequest) (*animalv1.ListOwnerAnimalsResponse, error)

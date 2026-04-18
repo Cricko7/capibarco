@@ -89,6 +89,31 @@ func TestGetFeedFiltersRanksAndPublishesTelemetry(t *testing.T) {
 	}
 }
 
+func TestGetFeedExcludesCurrentActorsOwnAnimals(t *testing.T) {
+	ctx := context.Background()
+	store := memory.NewStore([]feed.Candidate{
+		testCandidateWithDistance("own-animal", false, 0.99, 1, withOwnerProfileID("user-1")),
+		testCandidateWithDistance("other-animal", false, 0.98, 1, withOwnerProfileID("owner-2")),
+	})
+	service := feed.NewService(feed.Dependencies{
+		Store:       store,
+		Publisher:   memory.NewPublisher(),
+		Clock:       func() time.Time { return time.Date(2026, 4, 18, 12, 0, 0, 0, time.UTC) },
+		IDGenerator: sequenceIDs("session-1", "card-1"),
+	})
+
+	resp, err := service.GetFeed(ctx, &feedv1.GetFeedRequest{
+		Principal: &commonv1.Principal{ActorId: "user-1"},
+		Surface:   feedv1.FeedSurface_FEED_SURFACE_MAIN,
+		Page:      &commonv1.PageRequest{PageSize: 10},
+	})
+	if err != nil {
+		t.Fatalf("GetFeed returned error: %v", err)
+	}
+
+	assertStrings(t, feedAnimalIDs(resp.Cards), []string{"other-animal"})
+}
+
 func TestRecordCardOpenIsIdempotent(t *testing.T) {
 	ctx := context.Background()
 	now := time.Date(2026, 4, 17, 12, 30, 0, 0, time.UTC)
@@ -178,6 +203,12 @@ func withStatus(status animalv1.AnimalStatus) func(*feed.Candidate) {
 func withVisibility(visibility commonv1.Visibility) func(*feed.Candidate) {
 	return func(candidate *feed.Candidate) {
 		candidate.Animal.Visibility = visibility
+	}
+}
+
+func withOwnerProfileID(ownerProfileID string) func(*feed.Candidate) {
+	return func(candidate *feed.Candidate) {
+		candidate.Animal.OwnerProfileId = ownerProfileID
 	}
 }
 

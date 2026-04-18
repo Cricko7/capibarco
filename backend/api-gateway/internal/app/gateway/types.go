@@ -124,6 +124,13 @@ type CreateAnimalInput struct {
 	IdempotencyKey string
 }
 
+// UpdateAnimalInput patches one existing animal profile.
+type UpdateAnimalInput struct {
+	AnimalID   string
+	Animal     *animalv1.AnimalProfile
+	UpdateMask []string
+}
+
 // UploadAnimalPhotoInput describes a multipart animal photo upload.
 type UploadAnimalPhotoInput struct {
 	AnimalID       string

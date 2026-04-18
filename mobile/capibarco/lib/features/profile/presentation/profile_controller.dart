@@ -6,6 +6,7 @@ import '../../../core/error/app_exception.dart';
 import '../../../core/network/network_providers.dart';
 import '../../../core/network/rest_service_client.dart';
 import '../../auth/presentation/auth_controller.dart';
+import '../domain/entities/profile_animal_card.dart';
 import '../data/api/profile_api_client.dart';
 import '../data/datasources/profile_remote_data_source.dart';
 import '../data/repositories/profile_repository_impl.dart';
@@ -14,6 +15,7 @@ import '../domain/entities/user_profile.dart';
 class ProfileState {
   const ProfileState({
     this.profile,
+    this.animals = const <ProfileAnimalCardEntity>[],
     this.isLoading = false,
     this.isSaving = false,
     this.errorMessage,
@@ -21,6 +23,7 @@ class ProfileState {
   });
 
   final UserProfileEntity? profile;
+  final List<ProfileAnimalCardEntity> animals;
   final bool isLoading;
   final bool isSaving;
   final String? errorMessage;
@@ -28,6 +31,7 @@ class ProfileState {
 
   ProfileState copyWith({
     UserProfileEntity? profile,
+    List<ProfileAnimalCardEntity>? animals,
     bool clearProfile = false,
     bool? isLoading,
     bool? isSaving,
@@ -38,6 +42,7 @@ class ProfileState {
   }) {
     return ProfileState(
       profile: clearProfile ? null : (profile ?? this.profile),
+      animals: animals ?? this.animals,
       isLoading: isLoading ?? this.isLoading,
       isSaving: isSaving ?? this.isSaving,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
@@ -89,7 +94,19 @@ class ProfileController extends Notifier<ProfileState> {
     state = state.copyWith(isLoading: true, clearError: true, clearInfo: true);
     try {
       final profile = await _repository.getProfile(profileId);
-      state = state.copyWith(profile: profile, isLoading: false);
+      List<ProfileAnimalCardEntity> animals = state.animals;
+      String? animalsError;
+      try {
+        animals = await _repository.getProfileAnimals(profileId);
+      } catch (error) {
+        animalsError = error.toString();
+      }
+      state = state.copyWith(
+        profile: profile,
+        animals: animals,
+        isLoading: false,
+        errorMessage: animalsError,
+      );
     } catch (error) {
       if (error is AppException && error.isNotFound) {
         await updateProfile(
@@ -99,7 +116,10 @@ class ProfileController extends Notifier<ProfileState> {
           profileType: 'PROFILE_TYPE_USER',
           infoMessage: null,
         );
-        state = state.copyWith(isLoading: false);
+        state = state.copyWith(
+          isLoading: false,
+          animals: const <ProfileAnimalCardEntity>[],
+        );
         return;
       }
       state = state.copyWith(isLoading: false, errorMessage: error.toString());

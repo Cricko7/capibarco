@@ -1,8 +1,9 @@
-﻿import 'package:flutter/material.dart';
+import 'dart:async';
+
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/localization/app_localizations.dart';
-import '../../billing/presentation/donate_animal_sheet.dart';
 import '../../../shared/presentation/animal_details_sheet.dart';
 import '../../../shared/presentation/page_shell.dart';
 import '../../../shared/presentation/section_header.dart';
@@ -10,6 +11,7 @@ import '../../../shared/presentation/soft_card.dart';
 import '../../../shared/presentation/stale_banner.dart';
 import '../../../shared/presentation/status_view.dart';
 import '../../auth/presentation/auth_controller.dart';
+import '../../billing/presentation/donate_animal_sheet.dart';
 import '../../profile/presentation/profile_controller.dart';
 import 'feed_controller.dart';
 
@@ -21,12 +23,26 @@ class FeedPage extends ConsumerStatefulWidget {
 }
 
 class _FeedPageState extends ConsumerState<FeedPage> {
+  Timer? _refreshTimer;
+
   @override
   void initState() {
     super.initState();
     Future<void>.microtask(
       () => ref.read(feedControllerProvider.notifier).load(),
     );
+    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (!mounted) {
+        return;
+      }
+      ref.read(feedControllerProvider.notifier).refreshRealtime();
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -75,12 +91,11 @@ class _FeedPageState extends ConsumerState<FeedPage> {
                   icon: Icons.pets_outlined,
                 )
               else
-                ...state.cards.map(
-                  (card) {
-                    final isOwnCard =
-                        currentProfileId != null &&
-                        currentProfileId == card.ownerProfileId;
-                    return Padding(
+                ...state.cards.map((card) {
+                  final isOwnCard =
+                      currentProfileId != null &&
+                      currentProfileId == card.ownerProfileId;
+                  return Padding(
                     padding: const EdgeInsets.only(bottom: 16),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(28),
@@ -88,176 +103,182 @@ class _FeedPageState extends ConsumerState<FeedPage> {
                       child: SoftCard(
                         padding: EdgeInsets.zero,
                         child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          ClipRRect(
-                            borderRadius: const BorderRadius.vertical(
-                              top: Radius.circular(28),
-                            ),
-                            child: SizedBox(
-                              height: 220,
-                              width: double.infinity,
-                              child: card.photoUrl.isNotEmpty
-                                  ? Image.network(
-                                      card.photoUrl,
-                                      fit: BoxFit.cover,
-                                    )
-                                  : DecoratedBox(
-                                      decoration: BoxDecoration(
-                                        gradient: LinearGradient(
-                                          colors: <Color>[
-                                            Theme.of(
-                                              context,
-                                            ).colorScheme.primaryContainer,
-                                            Theme.of(
-                                              context,
-                                            ).colorScheme.secondaryContainer,
-                                          ],
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            ClipRRect(
+                              borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(28),
+                              ),
+                              child: SizedBox(
+                                height: 220,
+                                width: double.infinity,
+                                child: card.photoUrl.isNotEmpty
+                                    ? Image.network(
+                                        card.photoUrl,
+                                        fit: BoxFit.cover,
+                                      )
+                                    : DecoratedBox(
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: <Color>[
+                                              Theme.of(
+                                                context,
+                                              ).colorScheme.primaryContainer,
+                                              Theme.of(
+                                                context,
+                                              ).colorScheme.secondaryContainer,
+                                            ],
+                                          ),
+                                        ),
+                                        child: Icon(
+                                          Icons.pets_rounded,
+                                          size: 52,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.primary,
                                         ),
                                       ),
-                                      child: Icon(
-                                        Icons.pets_rounded,
-                                        size: 52,
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.primary,
-                                      ),
-                                    ),
+                              ),
                             ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.all(20),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: <Widget>[
-                                Row(
-                                  children: <Widget>[
-                                    Expanded(
-                                      child: Text(
-                                        '${card.name}, ${card.speciesLabel}',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .headlineSmall
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.w900,
-                                            ),
-                                      ),
-                                    ),
-                                    if (card.boosted)
-                                      Chip(
-                                        avatar: const Icon(
-                                          Icons.bolt_rounded,
-                                          size: 18,
+                            Padding(
+                              padding: const EdgeInsets.all(20),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: <Widget>[
+                                  Row(
+                                    children: <Widget>[
+                                      Expanded(
+                                        child: Text(
+                                          '${card.name}, ${card.speciesLabel}',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .headlineSmall
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.w900,
+                                              ),
                                         ),
-                                        label: const Text('Boosted'),
                                       ),
+                                      if (card.boosted)
+                                        Chip(
+                                          avatar: const Icon(
+                                            Icons.bolt_rounded,
+                                            size: 18,
+                                          ),
+                                          label: const Text('Boosted'),
+                                        ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    '${card.ownerDisplayName}${card.city.isNotEmpty ? ' · ${card.city}' : ''}',
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.titleMedium,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    card.description.isEmpty
+                                        ? 'No description yet.'
+                                        : card.description,
+                                  ),
+                                  if (card
+                                      .rankingReasons
+                                      .isNotEmpty) ...<Widget>[
+                                    const SizedBox(height: 14),
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
+                                      children: card.rankingReasons
+                                          .take(3)
+                                          .map(
+                                            (reason) =>
+                                                Chip(label: Text(reason)),
+                                          )
+                                          .toList(),
+                                    ),
                                   ],
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  '${card.ownerDisplayName}${card.city.isNotEmpty ? ' В· ${card.city}' : ''}',
-                                  style: Theme.of(
-                                    context,
-                                  ).textTheme.titleMedium,
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  card.description.isEmpty
-                                      ? 'No description yet.'
-                                      : card.description,
-                                ),
-                                if (card.rankingReasons.isNotEmpty) ...<Widget>[
                                   const SizedBox(height: 14),
-                                  Wrap(
-                                    spacing: 8,
-                                    runSpacing: 8,
-                                    children: card.rankingReasons
-                                        .take(3)
-                                        .map(
-                                          (reason) => Chip(label: Text(reason)),
-                                        )
-                                        .toList(),
+                                  Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: TextButton.icon(
+                                      onPressed: () =>
+                                          showModalBottomSheet<void>(
+                                            context: context,
+                                            isScrollControlled: true,
+                                            backgroundColor: Theme.of(context)
+                                                .colorScheme
+                                                .surfaceContainerLowest,
+                                            shape: const RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.vertical(
+                                                    top: Radius.circular(32),
+                                                  ),
+                                            ),
+                                            builder: (context) =>
+                                                DonateAnimalSheet(
+                                                  animalId: card.animalId,
+                                                  animalName: card.name,
+                                                  ownerDisplayName:
+                                                      card.ownerDisplayName,
+                                                ),
+                                          ),
+                                      icon: const Icon(
+                                        Icons.volunteer_activism_rounded,
+                                      ),
+                                      label: Text(l10n.supportAnimal),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 18),
+                                  Row(
+                                    children: <Widget>[
+                                      Expanded(
+                                        child: OutlinedButton.icon(
+                                          onPressed: isOwnCard
+                                              ? null
+                                              : () => ref
+                                                    .read(
+                                                      feedControllerProvider
+                                                          .notifier,
+                                                    )
+                                                    .swipe(
+                                                      card: card,
+                                                      liked: false,
+                                                    ),
+                                          icon: const Icon(Icons.close_rounded),
+                                          label: Text(l10n.pass),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: FilledButton.icon(
+                                          onPressed: isOwnCard
+                                              ? null
+                                              : () => ref
+                                                    .read(
+                                                      feedControllerProvider
+                                                          .notifier,
+                                                    )
+                                                    .swipe(
+                                                      card: card,
+                                                      liked: true,
+                                                    ),
+                                          icon: const Icon(
+                                            Icons.favorite_rounded,
+                                          ),
+                                          label: Text(l10n.like),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
-                                const SizedBox(height: 14),
-                                Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: TextButton.icon(
-                                    onPressed: () => showModalBottomSheet<void>(
-                                      context: context,
-                                      isScrollControlled: true,
-                                      backgroundColor: Theme.of(
-                                        context,
-                                      ).colorScheme.surfaceContainerLowest,
-                                      shape: const RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.vertical(
-                                          top: Radius.circular(32),
-                                        ),
-                                      ),
-                                      builder: (context) => DonateAnimalSheet(
-                                        animalId: card.animalId,
-                                        animalName: card.name,
-                                        ownerDisplayName: card.ownerDisplayName,
-                                      ),
-                                    ),
-                                    icon: const Icon(
-                                      Icons.volunteer_activism_rounded,
-                                    ),
-                                    label: Text(l10n.supportAnimal),
-                                  ),
-                                ),
-                                const SizedBox(height: 18),
-                                Row(
-                                  children: <Widget>[
-                                    Expanded(
-                                      child: OutlinedButton.icon(
-                                        onPressed: isOwnCard
-                                            ? null
-                                            : () => ref
-                                                  .read(
-                                                    feedControllerProvider
-                                                        .notifier,
-                                                  )
-                                                  .swipe(
-                                                    card: card,
-                                                    liked: false,
-                                                  ),
-                                        icon: const Icon(Icons.close_rounded),
-                                        label: Text(l10n.pass),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: FilledButton.icon(
-                                        onPressed: isOwnCard
-                                            ? null
-                                            : () => ref
-                                                  .read(
-                                                    feedControllerProvider
-                                                        .notifier,
-                                                  )
-                                                  .swipe(
-                                                    card: card,
-                                                    liked: true,
-                                                  ),
-                                        icon: const Icon(
-                                          Icons.favorite_rounded,
-                                        ),
-                                        label: Text(l10n.like),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
                         ),
                       ),
                     ),
                   );
-                  },
-                ),
+                }),
               if (state.nextPageToken.isNotEmpty) ...<Widget>[
                 const SizedBox(height: 8),
                 FilledButton.tonal(
@@ -285,7 +306,7 @@ class _FeedPageState extends ConsumerState<FeedPage> {
   Future<void> _showAnimalDetails(
     BuildContext context,
     WidgetRef ref,
-    card,
+    dynamic card,
   ) {
     return showModalBottomSheet<void>(
       context: context,
@@ -297,7 +318,7 @@ class _FeedPageState extends ConsumerState<FeedPage> {
       builder: (sheetContext) => AnimalDetailsSheet(
         name: card.name,
         subtitle:
-            '${card.speciesLabel}${card.city.isNotEmpty ? ' В· ${card.city}' : ''}',
+            '${card.speciesLabel}${card.city.isNotEmpty ? ' · ${card.city}' : ''}',
         description: card.description,
         photoUrl: card.photoUrl,
         respondLabel: _isOwnCard(ref, card) ? 'Own card' : 'Respond',
@@ -315,7 +336,7 @@ class _FeedPageState extends ConsumerState<FeedPage> {
     );
   }
 
-  bool _isOwnCard(WidgetRef ref, card) {
+  bool _isOwnCard(WidgetRef ref, dynamic card) {
     final currentProfileId =
         ref.read(profileControllerProvider).profile?.id ??
         ref.read(authControllerProvider).session?.user.id;

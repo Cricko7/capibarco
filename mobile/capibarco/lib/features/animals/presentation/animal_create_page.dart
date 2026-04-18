@@ -4,15 +4,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../app/localization/app_localizations.dart';
 import '../../../shared/presentation/page_shell.dart';
 import '../../../shared/presentation/section_header.dart';
 import '../../../shared/presentation/soft_card.dart';
+import '../../../shared/presentation/status_view.dart';
 import 'animal_create_controller.dart';
 
 class AnimalCreatePage extends ConsumerStatefulWidget {
-  const AnimalCreatePage({super.key});
+  const AnimalCreatePage({this.animalId, super.key});
+
+  final String? animalId;
 
   @override
   ConsumerState<AnimalCreatePage> createState() => _AnimalCreatePageState();
@@ -26,14 +30,30 @@ class _AnimalCreatePageState extends ConsumerState<AnimalCreatePage> {
   final _descriptionController = TextEditingController();
   final _traitsController = TextEditingController();
   final _imagePicker = ImagePicker();
+  final String _createIdempotencyKey = const Uuid().v4();
 
   String _species = 'SPECIES_DOG';
   String _sex = 'ANIMAL_SEX_FEMALE';
   String _size = 'ANIMAL_SIZE_MEDIUM';
   bool _vaccinated = true;
   bool _sterilized = false;
+  bool _isLoadingDraft = false;
+  bool _didLoadDraft = false;
+  String? _loadErrorMessage;
+  String? _existingPhotoUrl;
   XFile? _selectedPhoto;
   Uint8List? _selectedPhotoBytes;
+
+  bool get _isEditing =>
+      widget.animalId != null && widget.animalId!.trim().isNotEmpty;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_isEditing) {
+      Future<void>.microtask(_loadDraft);
+    }
+  }
 
   @override
   void dispose() {
@@ -50,15 +70,38 @@ class _AnimalCreatePageState extends ConsumerState<AnimalCreatePage> {
     final l10n = AppLocalizations.of(context);
     final state = ref.watch(animalCreateControllerProvider);
 
+    if (_isLoadingDraft && !_didLoadDraft) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(_isEditing ? 'Edit draft' : l10n.publishPet),
+        ),
+        body: StatusView.loading(message: l10n.loading),
+      );
+    }
+
+    if (_loadErrorMessage != null && !_didLoadDraft) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Edit draft')),
+        body: StatusView.message(
+          message: _loadErrorMessage!,
+          icon: Icons.error_outline_rounded,
+          action: FilledButton(onPressed: _loadDraft, child: Text(l10n.retry)),
+        ),
+      );
+    }
+
+    final photoUrl = _selectedPhotoBytes != null ? null : _existingPhotoUrl;
+
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.publishPet)),
+      appBar: AppBar(title: Text(_isEditing ? 'Edit draft' : l10n.publishPet)),
       body: PageShell(
         child: ListView(
           children: <Widget>[
             SectionHeader(
-              title: l10n.publishPet,
-              subtitle:
-                  'Create a pet card, save it as draft, or publish when ready.',
+              title: _isEditing ? 'Edit draft' : l10n.publishPet,
+              subtitle: _isEditing
+                  ? 'Update the draft, then publish it when everything looks right.'
+                  : 'Create a pet card, save it as draft, or publish when ready.',
             ),
             const SizedBox(height: 16),
             SoftCard(
@@ -178,17 +221,19 @@ class _AnimalCreatePageState extends ConsumerState<AnimalCreatePage> {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    if (_selectedPhoto != null &&
-                        _selectedPhotoBytes != null) ...<Widget>[
+                    if (_selectedPhotoBytes != null ||
+                        (photoUrl?.isNotEmpty ?? false)) ...<Widget>[
                       ClipRRect(
                         borderRadius: BorderRadius.circular(24),
                         child: SizedBox(
                           height: 180,
                           width: double.infinity,
-                          child: Image.memory(
-                            _selectedPhotoBytes!,
-                            fit: BoxFit.cover,
-                          ),
+                          child: _selectedPhotoBytes != null
+                              ? Image.memory(
+                                  _selectedPhotoBytes!,
+                                  fit: BoxFit.cover,
+                                )
+                              : Image.network(photoUrl!, fit: BoxFit.cover),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -201,7 +246,9 @@ class _AnimalCreatePageState extends ConsumerState<AnimalCreatePage> {
                             icon: const Icon(Icons.add_a_photo_rounded),
                             label: Text(
                               _selectedPhoto == null
-                                  ? l10n.addPhoto
+                                  ? ((photoUrl?.isNotEmpty ?? false)
+                                        ? 'Add another photo'
+                                        : l10n.addPhoto)
                                   : l10n.changePhoto,
                             ),
                           ),
@@ -283,6 +330,50 @@ class _AnimalCreatePageState extends ConsumerState<AnimalCreatePage> {
     );
   }
 
+  Future<void> _loadDraft() async {
+    final animalId = widget.animalId;
+    if (animalId == null || animalId.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      _isLoadingDraft = true;
+      _loadErrorMessage = null;
+    });
+
+    try {
+      final animal = await ref
+          .read(animalsRepositoryProvider)
+          .getAnimal(animalId: animalId);
+      if (!mounted) {
+        return;
+      }
+      _nameController.text = animal.name;
+      _breedController.text = animal.breed;
+      _ageController.text = animal.ageMonths.toString();
+      _descriptionController.text = animal.description;
+      _traitsController.text = animal.traits.join(', ');
+      setState(() {
+        _species = animal.species;
+        _sex = animal.sex;
+        _size = animal.size;
+        _vaccinated = animal.vaccinated;
+        _sterilized = animal.sterilized;
+        _existingPhotoUrl = animal.photoUrl;
+        _didLoadDraft = true;
+        _isLoadingDraft = false;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _loadErrorMessage = error.toString();
+        _isLoadingDraft = false;
+      });
+    }
+  }
+
   Future<void> _pickPhoto() async {
     final photo = await _imagePicker.pickImage(
       source: ImageSource.gallery,
@@ -317,6 +408,7 @@ class _AnimalCreatePageState extends ConsumerState<AnimalCreatePage> {
 
     final success = publish
         ? await controller.publishAnimal(
+            animalId: widget.animalId,
             name: _nameController.text.trim(),
             species: _species,
             breed: _breedController.text.trim(),
@@ -329,8 +421,11 @@ class _AnimalCreatePageState extends ConsumerState<AnimalCreatePage> {
             sterilized: _sterilized,
             photo: _selectedPhoto,
             photoBytes: _selectedPhotoBytes,
+            hasExistingPhoto: (_existingPhotoUrl?.isNotEmpty ?? false),
+            createIdempotencyKey: _createIdempotencyKey,
           )
         : await controller.saveDraft(
+            animalId: widget.animalId,
             name: _nameController.text.trim(),
             species: _species,
             breed: _breedController.text.trim(),
@@ -343,6 +438,7 @@ class _AnimalCreatePageState extends ConsumerState<AnimalCreatePage> {
             sterilized: _sterilized,
             photo: _selectedPhoto,
             photoBytes: _selectedPhotoBytes,
+            createIdempotencyKey: _createIdempotencyKey,
           );
 
     if (!success || !mounted) {
@@ -355,6 +451,6 @@ class _AnimalCreatePageState extends ConsumerState<AnimalCreatePage> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
-    context.pop();
+    context.pop(true);
   }
 }

@@ -1,4 +1,5 @@
 import '../api/profile_api_client.dart';
+import '../dtos/profile_animal_card_dto.dart';
 import '../dtos/profile_dto.dart';
 
 class ProfileRemoteDataSource {
@@ -24,4 +25,7 @@ class ProfileRemoteDataSource {
     city: city,
     profileType: profileType,
   );
+
+  Future<List<ProfileAnimalCardDto>> getProfileAnimals(String profileId) =>
+      _apiClient.getProfileAnimals(profileId);
 }

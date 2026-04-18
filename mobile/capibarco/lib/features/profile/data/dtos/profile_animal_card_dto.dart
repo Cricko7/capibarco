@@ -4,6 +4,7 @@ class ProfileAnimalCardDto {
   const ProfileAnimalCardDto({
     required this.id,
     required this.name,
+    required this.statusCode,
     required this.species,
     required this.breed,
     required this.description,
@@ -14,6 +15,7 @@ class ProfileAnimalCardDto {
 
   final String id;
   final String name;
+  final String statusCode;
   final String species;
   final String breed;
   final String description;
@@ -31,12 +33,13 @@ class ProfileAnimalCardDto {
     return ProfileAnimalCardDto(
       id: json['animal_id'] as String? ?? '',
       name: json['name'] as String? ?? 'Pet',
+      statusCode: _statusCode(json['status']),
       species: _enumLabel(json['species'], 'SPECIES'),
       breed: json['breed'] as String? ?? '',
       description: json['description'] as String? ?? '',
       city: location['city'] as String? ?? '',
       photoUrl: firstPhoto['url'] as String? ?? '',
-      status: _enumLabel(json['status'], 'ANIMAL_STATUS'),
+      status: _statusLabel(json['status']),
     );
   }
 
@@ -44,6 +47,7 @@ class ProfileAnimalCardDto {
     return ProfileAnimalCardEntity(
       id: id,
       name: name,
+      statusCode: statusCode,
       speciesLabel: species,
       breed: breed,
       description: description,
@@ -51,6 +55,16 @@ class ProfileAnimalCardDto {
       photoUrl: photoUrl,
       statusLabel: status,
     );
+  }
+
+  static String _stringValue(Object? raw) {
+    if (raw == null) {
+      return '';
+    }
+    if (raw is String) {
+      return raw;
+    }
+    return raw.toString();
   }
 
   static String _enumLabel(Object? raw, String prefix) {
@@ -68,5 +82,30 @@ class ProfileAnimalCardDto {
         .replaceAll('${prefix}_', '')
         .replaceAll('_', ' ')
         .toLowerCase();
+  }
+
+  static String _statusLabel(Object? raw) {
+    final value = _statusCode(raw);
+    if (value.isEmpty) {
+      return '';
+    }
+    return value
+        .replaceAll('ANIMAL_STATUS_', '')
+        .replaceAll('_', ' ')
+        .toLowerCase();
+  }
+
+  static String _statusCode(Object? raw) {
+    if (raw is num) {
+      return switch (raw.toInt()) {
+        1 => 'ANIMAL_STATUS_DRAFT',
+        2 => 'ANIMAL_STATUS_AVAILABLE',
+        3 => 'ANIMAL_STATUS_RESERVED',
+        4 => 'ANIMAL_STATUS_ADOPTED',
+        5 => 'ANIMAL_STATUS_ARCHIVED',
+        _ => '',
+      };
+    }
+    return _stringValue(raw);
   }
 }
