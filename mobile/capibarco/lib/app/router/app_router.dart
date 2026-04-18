@@ -6,7 +6,6 @@ import '../../features/animals/presentation/animal_create_page.dart';
 import '../../features/auth/presentation/auth_controller.dart';
 import '../../features/auth/presentation/auth_state.dart';
 import '../../features/auth/presentation/login_page.dart';
-import '../../features/auth/presentation/register_page.dart';
 import '../../features/auth/presentation/splash_page.dart';
 import '../../features/chat/presentation/chat_page.dart';
 import '../../features/discovery/presentation/discovery_page.dart';
@@ -53,10 +52,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/auth/login',
         builder: (context, state) => const LoginPage(),
-      ),
-      GoRoute(
-        path: '/auth/register',
-        builder: (context, state) => const RegisterPage(),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
