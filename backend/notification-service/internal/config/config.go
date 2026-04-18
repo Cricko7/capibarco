@@ -82,6 +82,8 @@ func Load(configPath string) (Config, error) {
 	if err := v.Unmarshal(&cfg); err != nil {
 		return Config{}, fmt.Errorf("decode config: %w", err)
 	}
+	cfg.HTTP.CORSOrigins = v.GetStringSlice("http.cors_origins")
+	cfg.Kafka.Brokers = v.GetStringSlice("kafka.brokers")
 	if err := validator.New().Struct(cfg); err != nil {
 		return Config{}, fmt.Errorf("validate config: %w", err)
 	}

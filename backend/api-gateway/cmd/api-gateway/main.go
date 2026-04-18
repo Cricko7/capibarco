@@ -91,8 +91,10 @@ func run() int {
 	billingClient := grpcclient.NewBillingClient(conns.Billing, cfg.GRPC.RequestTimeout, res("billing-service"))
 	analyticsClient := grpcclient.NewAnalyticsClient(conns.Analytics, cfg.GRPC.RequestTimeout, res("analytics-service"))
 	var notificationClient *grpcclient.NotificationClient
+	var notificationDependency gateway.NotificationClient
 	if conns.Notification != nil {
 		notificationClient = grpcclient.NewNotificationClient(conns.Notification, cfg.GRPC.RequestTimeout, res("notification-service"))
+		notificationDependency = notificationClient
 	}
 
 	app := gateway.NewService(gateway.Dependencies{
@@ -103,7 +105,7 @@ func run() int {
 		Chat:          chatClient,
 		Billing:       billingClient,
 		Analytics:     analyticsClient,
-		Notification:  notificationClient,
+		Notification:  notificationDependency,
 		GuestSessions: domain.NewGuestSessionCodec([]byte(cfg.Auth.GuestSecret), cfg.Auth.GuestTTL),
 		Defaults: gateway.Defaults{
 			TenantID:         cfg.Auth.TenantID,
@@ -112,7 +114,12 @@ func run() int {
 		},
 	})
 
-	httpSrv := httpserver.New(cfg, app, chatClient, notificationClient, limiter, publisher, uploader, registry, gatewayMetrics, logger)
+	var httpSrv *httpserver.Server
+	if notificationClient != nil {
+		httpSrv = httpserver.New(cfg, app, chatClient, notificationClient, limiter, publisher, uploader, registry, gatewayMetrics, logger)
+	} else {
+		httpSrv = httpserver.New(cfg, app, chatClient, nil, limiter, publisher, uploader, registry, gatewayMetrics, logger)
+	}
 	errCh := make(chan error, 1)
 	safe.Go(ctx, logger, "http-server", errCh, func(context.Context) error {
 		logger.Info("starting api-gateway", "addr", cfg.HTTP.Addr)

@@ -18,3 +18,6 @@ CREATE DATABASE matching OWNER matching;
 
 CREATE USER "user" WITH PASSWORD 'user';
 CREATE DATABASE "user" OWNER "user";
+
+CREATE USER notification WITH PASSWORD 'notification';
+CREATE DATABASE notification OWNER notification;
