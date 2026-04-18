@@ -15,6 +15,8 @@ import (
 	feedv1 "github.com/petmatch/petmatch/gen/go/petmatch/feed/v1"
 	matchingv1 "github.com/petmatch/petmatch/gen/go/petmatch/matching/v1"
 	notificationv1 "github.com/petmatch/petmatch/gen/go/petmatch/notification/v1"
+	userv1 "github.com/petmatch/petmatch/gen/go/petmatch/user/v1"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 )
 
 // Dependencies contains application ports.
@@ -25,6 +27,7 @@ type Dependencies struct {
 	Matching      MatchingClient
 	Chat          ChatClient
 	Billing       BillingClient
+	User          UserClient
 	Analytics     AnalyticsClient
 	Notification  NotificationClient
 	GuestSessions *domain.GuestSessionCodec
@@ -277,6 +280,125 @@ func (s *Service) CreateDonationIntent(ctx context.Context, input CreateDonation
 		Provider:       input.Provider,
 		IdempotencyKey: input.IdempotencyKey,
 	})
+}
+
+// GetProfile returns one user profile.
+func (s *Service) GetProfile(ctx context.Context, profileID string) (*userv1.GetProfileResponse, error) {
+	if _, err := requiredPrincipal(ctx); err != nil {
+		return nil, err
+	}
+	return s.deps.User.GetProfile(ctx, &userv1.GetProfileRequest{ProfileId: profileID})
+}
+
+// SearchProfiles returns paginated user profiles.
+func (s *Service) SearchProfiles(ctx context.Context, input SearchProfilesInput) (*userv1.SearchProfilesResponse, error) {
+	if _, err := requiredPrincipal(ctx); err != nil {
+		return nil, err
+	}
+	filter := &userv1.ProfileFilter{
+		ProfileTypes:     input.ProfileTypes,
+		IncludeSuspended: input.IncludeSuspended,
+	}
+	if input.City != nil {
+		filter.City = input.City
+	}
+	if input.MinAverageRating != nil {
+		filter.MinAverageRating = input.MinAverageRating
+	}
+	if input.Query != nil {
+		filter.Query = input.Query
+	}
+	return s.deps.User.SearchProfiles(ctx, &userv1.SearchProfilesRequest{
+		Filter: filter,
+		Page:   &commonv1.PageRequest{PageSize: capPageSize(input.PageSize, 20, s.deps.Defaults.MaxPageSize), PageToken: input.PageToken},
+	})
+}
+
+// UpdateProfile updates one user profile.
+func (s *Service) UpdateProfile(ctx context.Context, input UpdateProfileInput) (*userv1.UpdateProfileResponse, error) {
+	principal, err := requiredPrincipal(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if input.Profile == nil {
+		return nil, fmt.Errorf("%w: profile is required", ErrInvalidInput)
+	}
+	if input.ProfileID == "" {
+		return nil, fmt.Errorf("%w: profile_id is required", ErrInvalidInput)
+	}
+	if input.Profile.ProfileId == "" {
+		input.Profile.ProfileId = input.ProfileID
+	}
+	if input.Profile.ProfileId != input.ProfileID {
+		return nil, fmt.Errorf("%w: profile_id mismatch", ErrInvalidInput)
+	}
+	if input.Profile.AuthUserId == "" {
+		input.Profile.AuthUserId = principal.ActorID
+	}
+	return s.deps.User.UpdateProfile(ctx, &userv1.UpdateProfileRequest{
+		ProfileId:  input.ProfileID,
+		Profile:    input.Profile,
+		UpdateMask: &fieldmaskpb.FieldMask{Paths: input.UpdateMask},
+	})
+}
+
+// CreateReview creates one review authored by the current actor.
+func (s *Service) CreateReview(ctx context.Context, input CreateReviewInput) (*userv1.CreateReviewResponse, error) {
+	principal, err := requiredPrincipal(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return s.deps.User.CreateReview(ctx, &userv1.CreateReviewRequest{
+		TargetProfileId: input.TargetProfileID,
+		AuthorProfileId: principal.ActorID,
+		Rating:          input.Rating,
+		Text:            input.Text,
+		MatchId:         input.MatchID,
+	})
+}
+
+// UpdateReview updates one review.
+func (s *Service) UpdateReview(ctx context.Context, input UpdateReviewInput) (*userv1.UpdateReviewResponse, error) {
+	principal, err := requiredPrincipal(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if input.Review == nil {
+		return nil, fmt.Errorf("%w: review is required", ErrInvalidInput)
+	}
+	if input.ReviewID == "" {
+		return nil, fmt.Errorf("%w: review_id is required", ErrInvalidInput)
+	}
+	if input.Review.ReviewId == "" {
+		input.Review.ReviewId = input.ReviewID
+	}
+	if input.Review.AuthorProfileId == "" {
+		input.Review.AuthorProfileId = principal.ActorID
+	}
+	return s.deps.User.UpdateReview(ctx, &userv1.UpdateReviewRequest{
+		ReviewId:   input.ReviewID,
+		Review:     input.Review,
+		UpdateMask: &fieldmaskpb.FieldMask{Paths: input.UpdateMask},
+	})
+}
+
+// ListReviews lists reviews for one profile.
+func (s *Service) ListReviews(ctx context.Context, input ListReviewsInput) (*userv1.ListReviewsResponse, error) {
+	if _, err := requiredPrincipal(ctx); err != nil {
+		return nil, err
+	}
+	return s.deps.User.ListReviews(ctx, &userv1.ListReviewsRequest{
+		TargetProfileId: input.TargetProfileID,
+		Page:            &commonv1.PageRequest{PageSize: capPageSize(input.PageSize, 20, s.deps.Defaults.MaxPageSize), PageToken: input.PageToken},
+	})
+}
+
+// GetReputationSummary returns profile reputation.
+func (s *Service) GetReputationSummary(ctx context.Context, profileID string) (*userv1.GetReputationSummaryResponse, error) {
+	if _, err := requiredPrincipal(ctx); err != nil {
+		return nil, err
+	}
+	return s.deps.User.GetReputationSummary(ctx, &userv1.GetReputationSummaryRequest{ProfileId: profileID})
 }
 
 // GetAnimalStats returns animal analytics.

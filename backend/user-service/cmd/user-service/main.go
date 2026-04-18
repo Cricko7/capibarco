@@ -71,7 +71,10 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("listen grpc: %w", err)
 	}
-	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(deliverygrpc.UnaryInterceptor(logger, m, resilience.NewRateLimiter(cfg.GRPC.RateLimitPerSec, cfg.GRPC.RateLimitBurst), cfg.GRPC.RequestTimeout)))
+	grpcServer := grpc.NewServer(
+		grpc.ForceServerCodec(deliverygrpc.JSONCodec()),
+		grpc.UnaryInterceptor(deliverygrpc.UnaryInterceptor(logger, m, resilience.NewRateLimiter(cfg.GRPC.RateLimitPerSec, cfg.GRPC.RateLimitBurst), cfg.GRPC.RequestTimeout)),
+	)
 	userv1.RegisterUserServiceServer(grpcServer, deliverygrpc.NewServer(service))
 
 	httpServer := deliveryhttp.NewServer(cfg.HTTP.Addr, cfg.HTTP.ReadTimeout, cfg.HTTP.WriteTimeout, cfg.HTTP.IdleTimeout, cfg.HTTP.CORSOrigins, service, m, logger)

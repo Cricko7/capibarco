@@ -89,6 +89,7 @@ func run() int {
 	matchingClient := grpcclient.NewMatchingClient(conns.Matching, cfg.GRPC.RequestTimeout, res("matching-service"))
 	chatClient := grpcclient.NewChatClient(conns.Chat, cfg.GRPC.RequestTimeout, res("chat-service"))
 	billingClient := grpcclient.NewBillingClient(conns.Billing, cfg.GRPC.RequestTimeout, res("billing-service"))
+	userClient := grpcclient.NewUserClient(conns.User, cfg.GRPC.RequestTimeout, res("user-service"))
 	analyticsClient := grpcclient.NewAnalyticsClient(conns.Analytics, cfg.GRPC.RequestTimeout, res("analytics-service"))
 	var notificationClient *grpcclient.NotificationClient
 	var notificationDependency gateway.NotificationClient
@@ -104,6 +105,7 @@ func run() int {
 		Matching:      matchingClient,
 		Chat:          chatClient,
 		Billing:       billingClient,
+		User:          userClient,
 		Analytics:     analyticsClient,
 		Notification:  notificationDependency,
 		GuestSessions: domain.NewGuestSessionCodec([]byte(cfg.Auth.GuestSecret), cfg.Auth.GuestTTL),

@@ -37,6 +37,7 @@ import (
 	feedv1 "github.com/petmatch/petmatch/gen/go/petmatch/feed/v1"
 	matchingv1 "github.com/petmatch/petmatch/gen/go/petmatch/matching/v1"
 	notificationv1 "github.com/petmatch/petmatch/gen/go/petmatch/notification/v1"
+	userv1 "github.com/petmatch/petmatch/gen/go/petmatch/user/v1"
 	"google.golang.org/grpc"
 )
 
@@ -104,6 +105,13 @@ func New(cfg config.Config, app *gateway.Service, chat chatStreamer, notificatio
 	protected.POST("/v1/animals/:animal_id", s.swipeAnimalColon)
 	protected.POST("/v1/animals/:animal_id/swipe", s.swipeAnimal)
 	protected.GET("/v1/animals/:animal_id/stats", s.getAnimalStats)
+	protected.GET("/v1/profiles", s.searchProfiles)
+	protected.GET("/v1/profiles/:profile_id", s.getProfile)
+	protected.PATCH("/v1/profiles/:profile_id", s.updateProfile)
+	protected.GET("/v1/profiles/:profile_id/reviews", s.listReviews)
+	protected.POST("/v1/profiles/:profile_id/reviews", s.createReview)
+	protected.GET("/v1/profiles/:profile_id/reputation", s.getReputationSummary)
+	protected.PATCH("/v1/reviews/:review_id", s.updateReview)
 	protected.GET("/v1/chat/conversations", s.listConversations)
 	protected.GET("/v1/chat/conversations/:conversation_id/messages", s.listMessages)
 	protected.POST("/v1/chat/conversations/:conversation_id/messages", s.sendMessage)
@@ -317,6 +325,145 @@ func (s *Server) getAnimalStats(c *gin.Context) {
 		return
 	}
 	writeProto(c, http.StatusOK, out)
+}
+
+func (s *Server) getProfile(c *gin.Context) {
+	out, err := s.app.GetProfile(c.Request.Context(), c.Param("profile_id"))
+	if err != nil {
+		problem.Abort(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, out)
+}
+
+func (s *Server) searchProfiles(c *gin.Context) {
+	var profileTypes []userv1.ProfileType
+	for _, raw := range c.QueryArray("profile_type") {
+		value, err := strconv.ParseInt(raw, 10, 32)
+		if err != nil {
+			problem.Abort(c, fmt.Errorf("%w: invalid profile_type", gateway.ErrInvalidInput))
+			return
+		}
+		profileTypes = append(profileTypes, userv1.ProfileType(value))
+	}
+	var city *string
+	if value := c.Query("city"); value != "" {
+		city = &value
+	}
+	var minAverageRating *float64
+	if value := c.Query("min_average_rating"); value != "" {
+		parsed, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			problem.Abort(c, fmt.Errorf("%w: invalid min_average_rating", gateway.ErrInvalidInput))
+			return
+		}
+		minAverageRating = &parsed
+	}
+	var query *string
+	if value := c.Query("query"); value != "" {
+		query = &value
+	}
+	out, err := s.app.SearchProfiles(c.Request.Context(), gateway.SearchProfilesInput{
+		ProfileTypes:     profileTypes,
+		City:             city,
+		MinAverageRating: minAverageRating,
+		Query:            query,
+		IncludeSuspended: c.Query("include_suspended") == "true",
+		PageSize:         queryInt32(c, "page_size"),
+		PageToken:        c.Query("page_token"),
+	})
+	if err != nil {
+		problem.Abort(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, out)
+}
+
+func (s *Server) updateProfile(c *gin.Context) {
+	var input struct {
+		Profile    *userv1.UserProfile `json:"profile"`
+		UpdateMask []string            `json:"update_mask"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		problem.Abort(c, fmt.Errorf("%w: %v", gateway.ErrInvalidInput, err))
+		return
+	}
+	out, err := s.app.UpdateProfile(c.Request.Context(), gateway.UpdateProfileInput{
+		ProfileID:  c.Param("profile_id"),
+		Profile:    input.Profile,
+		UpdateMask: input.UpdateMask,
+	})
+	if err != nil {
+		problem.Abort(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, out)
+}
+
+func (s *Server) createReview(c *gin.Context) {
+	var input struct {
+		Rating  int32   `json:"rating"`
+		Text    string  `json:"text"`
+		MatchID *string `json:"match_id"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		problem.Abort(c, fmt.Errorf("%w: %v", gateway.ErrInvalidInput, err))
+		return
+	}
+	out, err := s.app.CreateReview(c.Request.Context(), gateway.CreateReviewInput{
+		TargetProfileID: c.Param("profile_id"),
+		Rating:          input.Rating,
+		Text:            input.Text,
+		MatchID:         input.MatchID,
+	})
+	if err != nil {
+		problem.Abort(c, err)
+		return
+	}
+	c.JSON(http.StatusCreated, out)
+}
+
+func (s *Server) updateReview(c *gin.Context) {
+	var input struct {
+		Review     *userv1.Review `json:"review"`
+		UpdateMask []string       `json:"update_mask"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		problem.Abort(c, fmt.Errorf("%w: %v", gateway.ErrInvalidInput, err))
+		return
+	}
+	out, err := s.app.UpdateReview(c.Request.Context(), gateway.UpdateReviewInput{
+		ReviewID:   c.Param("review_id"),
+		Review:     input.Review,
+		UpdateMask: input.UpdateMask,
+	})
+	if err != nil {
+		problem.Abort(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, out)
+}
+
+func (s *Server) listReviews(c *gin.Context) {
+	out, err := s.app.ListReviews(c.Request.Context(), gateway.ListReviewsInput{
+		TargetProfileID: c.Param("profile_id"),
+		PageSize:        queryInt32(c, "page_size"),
+		PageToken:       c.Query("page_token"),
+	})
+	if err != nil {
+		problem.Abort(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, out)
+}
+
+func (s *Server) getReputationSummary(c *gin.Context) {
+	out, err := s.app.GetReputationSummary(c.Request.Context(), c.Param("profile_id"))
+	if err != nil {
+		problem.Abort(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, out)
 }
 
 func (s *Server) listConversations(c *gin.Context) {

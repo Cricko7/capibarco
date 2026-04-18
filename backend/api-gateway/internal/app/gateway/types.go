@@ -11,6 +11,7 @@ import (
 	feedv1 "github.com/petmatch/petmatch/gen/go/petmatch/feed/v1"
 	matchingv1 "github.com/petmatch/petmatch/gen/go/petmatch/matching/v1"
 	notificationv1 "github.com/petmatch/petmatch/gen/go/petmatch/notification/v1"
+	userv1 "github.com/petmatch/petmatch/gen/go/petmatch/user/v1"
 )
 
 // Defaults contains gateway orchestration defaults.
@@ -154,6 +155,46 @@ type CreateDonationIntentInput struct {
 	Amount         *commonv1.MoneyAmount
 	Provider       string
 	IdempotencyKey string
+}
+
+// SearchProfilesInput contains profile discovery filters.
+type SearchProfilesInput struct {
+	ProfileTypes     []userv1.ProfileType
+	City             *string
+	MinAverageRating *float64
+	Query            *string
+	IncludeSuspended bool
+	PageSize         int32
+	PageToken        string
+}
+
+// UpdateProfileInput updates one profile.
+type UpdateProfileInput struct {
+	ProfileID  string
+	Profile    *userv1.UserProfile
+	UpdateMask []string
+}
+
+// CreateReviewInput creates one review for the target profile.
+type CreateReviewInput struct {
+	TargetProfileID string
+	Rating          int32
+	Text            string
+	MatchID         *string
+}
+
+// UpdateReviewInput updates one review.
+type UpdateReviewInput struct {
+	ReviewID   string
+	Review     *userv1.Review
+	UpdateMask []string
+}
+
+// ListReviewsInput contains review pagination.
+type ListReviewsInput struct {
+	TargetProfileID string
+	PageSize        int32
+	PageToken       string
 }
 
 // GetAnimalStatsInput contains animal analytics filters.

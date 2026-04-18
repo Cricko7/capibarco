@@ -49,6 +49,7 @@ type GRPCConfig struct {
 	MatchingAddr        string        `mapstructure:"matching_addr" validate:"required"`
 	ChatAddr            string        `mapstructure:"chat_addr" validate:"required"`
 	BillingAddr         string        `mapstructure:"billing_addr" validate:"required"`
+	UserAddr            string        `mapstructure:"user_addr" validate:"required"`
 	AnalyticsAddr       string        `mapstructure:"analytics_addr" validate:"required"`
 	NotificationEnabled bool          `mapstructure:"notification_enabled"`
 	NotificationAddr    string        `mapstructure:"notification_addr"`
@@ -149,6 +150,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("grpc.matching_addr", "localhost:19094")
 	v.SetDefault("grpc.chat_addr", "localhost:19092")
 	v.SetDefault("grpc.billing_addr", "localhost:19091")
+	v.SetDefault("grpc.user_addr", "localhost:19095")
 	v.SetDefault("grpc.analytics_addr", "localhost:19096")
 	v.SetDefault("grpc.notification_enabled", false)
 	v.SetDefault("grpc.notification_addr", "localhost:19097")

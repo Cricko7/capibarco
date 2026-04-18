@@ -23,6 +23,7 @@ type Connections struct {
 	Matching     *grpc.ClientConn
 	Chat         *grpc.ClientConn
 	Billing      *grpc.ClientConn
+	User         *grpc.ClientConn
 	Analytics    *grpc.ClientConn
 	Notification *grpc.ClientConn
 }
@@ -72,12 +73,17 @@ func DialAll(ctx context.Context, cfg config.GRPCConfig, m *metrics.Metrics) (*C
 		closeMany(authConn, animalConn, feedConn, matchingConn, chatConn)
 		return nil, err
 	}
-	analyticsConn, err := dial(cfg.AnalyticsAddr)
+	userConn, err := dial(cfg.UserAddr)
 	if err != nil {
 		closeMany(authConn, animalConn, feedConn, matchingConn, chatConn, billingConn)
 		return nil, err
 	}
-	conns := &Connections{Auth: authConn, Animal: animalConn, Feed: feedConn, Matching: matchingConn, Chat: chatConn, Billing: billingConn, Analytics: analyticsConn}
+	analyticsConn, err := dial(cfg.AnalyticsAddr)
+	if err != nil {
+		closeMany(authConn, animalConn, feedConn, matchingConn, chatConn, billingConn, userConn)
+		return nil, err
+	}
+	conns := &Connections{Auth: authConn, Animal: animalConn, Feed: feedConn, Matching: matchingConn, Chat: chatConn, Billing: billingConn, User: userConn, Analytics: analyticsConn}
 	if cfg.NotificationEnabled {
 		notificationConn, err := dial(cfg.NotificationAddr)
 		if err != nil {
@@ -91,7 +97,7 @@ func DialAll(ctx context.Context, cfg config.GRPCConfig, m *metrics.Metrics) (*C
 
 // Close closes all downstream connections.
 func (c *Connections) Close() error {
-	return closeMany(c.Auth, c.Animal, c.Feed, c.Matching, c.Chat, c.Billing, c.Analytics, c.Notification)
+	return closeMany(c.Auth, c.Animal, c.Feed, c.Matching, c.Chat, c.Billing, c.User, c.Analytics, c.Notification)
 }
 
 func closeMany(conns ...*grpc.ClientConn) error {

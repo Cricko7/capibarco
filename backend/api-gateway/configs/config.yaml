@@ -21,6 +21,7 @@ grpc:
   matching_addr: localhost:19094
   chat_addr: localhost:19092
   billing_addr: localhost:19091
+  user_addr: localhost:19095
   analytics_addr: localhost:19096
   notification_enabled: false
   notification_addr: localhost:19097

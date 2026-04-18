@@ -459,6 +459,7 @@ services:
       API_GATEWAY_GRPC_MATCHING_ADDR: matching-service:9090
       API_GATEWAY_GRPC_CHAT_ADDR: chat-service:9090
       API_GATEWAY_GRPC_BILLING_ADDR: billing-service:9090
+      API_GATEWAY_GRPC_USER_ADDR: user-service:9090
       API_GATEWAY_GRPC_ANALYTICS_ADDR: analytics-service:9090
       API_GATEWAY_GRPC_NOTIFICATION_ENABLED: "true"
       API_GATEWAY_GRPC_NOTIFICATION_ADDR: notification-service:9090

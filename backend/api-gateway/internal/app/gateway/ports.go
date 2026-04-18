@@ -12,6 +12,7 @@ import (
 	feedv1 "github.com/petmatch/petmatch/gen/go/petmatch/feed/v1"
 	matchingv1 "github.com/petmatch/petmatch/gen/go/petmatch/matching/v1"
 	notificationv1 "github.com/petmatch/petmatch/gen/go/petmatch/notification/v1"
+	userv1 "github.com/petmatch/petmatch/gen/go/petmatch/user/v1"
 )
 
 // Clock gives the application deterministic time in tests.
@@ -54,6 +55,17 @@ type ChatClient interface {
 // BillingClient exposes billing-service calls used by the gateway.
 type BillingClient interface {
 	CreateDonationIntent(context.Context, *billingv1.CreateDonationIntentRequest) (*billingv1.CreateDonationIntentResponse, error)
+}
+
+// UserClient exposes user-service calls used by the gateway.
+type UserClient interface {
+	GetProfile(context.Context, *userv1.GetProfileRequest) (*userv1.GetProfileResponse, error)
+	SearchProfiles(context.Context, *userv1.SearchProfilesRequest) (*userv1.SearchProfilesResponse, error)
+	UpdateProfile(context.Context, *userv1.UpdateProfileRequest) (*userv1.UpdateProfileResponse, error)
+	CreateReview(context.Context, *userv1.CreateReviewRequest) (*userv1.CreateReviewResponse, error)
+	UpdateReview(context.Context, *userv1.UpdateReviewRequest) (*userv1.UpdateReviewResponse, error)
+	ListReviews(context.Context, *userv1.ListReviewsRequest) (*userv1.ListReviewsResponse, error)
+	GetReputationSummary(context.Context, *userv1.GetReputationSummaryRequest) (*userv1.GetReputationSummaryResponse, error)
 }
 
 // AnalyticsClient exposes analytics-service calls used by the gateway.

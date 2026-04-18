@@ -2,6 +2,7 @@ package grpcclient
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	feedv1 "github.com/petmatch/petmatch/gen/go/petmatch/feed/v1"
 	matchingv1 "github.com/petmatch/petmatch/gen/go/petmatch/matching/v1"
 	notificationv1 "github.com/petmatch/petmatch/gen/go/petmatch/notification/v1"
+	userv1 "github.com/petmatch/petmatch/gen/go/petmatch/user/v1"
 	"google.golang.org/grpc"
 )
 
@@ -184,6 +186,66 @@ func (c *AnalyticsClient) GetAnimalStats(ctx context.Context, req *analyticsv1.G
 		return c.client.GetAnimalStats(ctx, req)
 	})
 }
+
+// UserClient wraps user-service.
+type UserClient struct {
+	conn    *grpc.ClientConn
+	timeout time.Duration
+	res     *resilience.Client
+}
+
+func NewUserClient(conn *grpc.ClientConn, timeout time.Duration, res *resilience.Client) *UserClient {
+	return &UserClient{conn: conn, timeout: timeout, res: res}
+}
+
+func (c *UserClient) GetProfile(ctx context.Context, req *userv1.GetProfileRequest) (*userv1.GetProfileResponse, error) {
+	return invokeUser(ctx, c, "/petmatch.user.v1.UserService/GetProfile", req, func() *userv1.GetProfileResponse { return &userv1.GetProfileResponse{} })
+}
+
+func (c *UserClient) SearchProfiles(ctx context.Context, req *userv1.SearchProfilesRequest) (*userv1.SearchProfilesResponse, error) {
+	return invokeUser(ctx, c, "/petmatch.user.v1.UserService/SearchProfiles", req, func() *userv1.SearchProfilesResponse { return &userv1.SearchProfilesResponse{} })
+}
+
+func (c *UserClient) UpdateProfile(ctx context.Context, req *userv1.UpdateProfileRequest) (*userv1.UpdateProfileResponse, error) {
+	return invokeUser(ctx, c, "/petmatch.user.v1.UserService/UpdateProfile", req, func() *userv1.UpdateProfileResponse { return &userv1.UpdateProfileResponse{} })
+}
+
+func (c *UserClient) CreateReview(ctx context.Context, req *userv1.CreateReviewRequest) (*userv1.CreateReviewResponse, error) {
+	return invokeUser(ctx, c, "/petmatch.user.v1.UserService/CreateReview", req, func() *userv1.CreateReviewResponse { return &userv1.CreateReviewResponse{} })
+}
+
+func (c *UserClient) UpdateReview(ctx context.Context, req *userv1.UpdateReviewRequest) (*userv1.UpdateReviewResponse, error) {
+	return invokeUser(ctx, c, "/petmatch.user.v1.UserService/UpdateReview", req, func() *userv1.UpdateReviewResponse { return &userv1.UpdateReviewResponse{} })
+}
+
+func (c *UserClient) ListReviews(ctx context.Context, req *userv1.ListReviewsRequest) (*userv1.ListReviewsResponse, error) {
+	return invokeUser(ctx, c, "/petmatch.user.v1.UserService/ListReviews", req, func() *userv1.ListReviewsResponse { return &userv1.ListReviewsResponse{} })
+}
+
+func (c *UserClient) GetReputationSummary(ctx context.Context, req *userv1.GetReputationSummaryRequest) (*userv1.GetReputationSummaryResponse, error) {
+	return invokeUser(ctx, c, "/petmatch.user.v1.UserService/GetReputationSummary", req, func() *userv1.GetReputationSummaryResponse { return &userv1.GetReputationSummaryResponse{} })
+}
+
+func invokeUser[Req any, Resp any](ctx context.Context, c *UserClient, method string, req Req, newResp func() Resp) (Resp, error) {
+	return resilience.Do(ctx, c.res, func(ctx context.Context) (Resp, error) {
+		ctx, cancel := context.WithTimeout(ctx, c.timeout)
+		defer cancel()
+		resp := newResp()
+		if err := c.conn.Invoke(ctx, method, req, resp, grpc.ForceCodec(userCodec{})); err != nil {
+			var zero Resp
+			return zero, err
+		}
+		return resp, nil
+	})
+}
+
+type userCodec struct{}
+
+func (userCodec) Name() string { return "json" }
+
+func (userCodec) Marshal(v any) ([]byte, error) { return json.Marshal(v) }
+
+func (userCodec) Unmarshal(data []byte, v any) error { return json.Unmarshal(data, v) }
 
 // NotificationClient wraps future notification-service.
 type NotificationClient struct {
