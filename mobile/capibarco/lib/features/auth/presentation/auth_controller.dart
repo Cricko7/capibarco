@@ -1,8 +1,15 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../bootstrap/providers.dart';
+import '../../../core/config/environment.dart';
 import '../../../core/error/error_mapper.dart';
+import '../../../core/network/interceptors/logging_interceptor.dart';
+import '../../../core/network/interceptors/retry_interceptor.dart';
+import '../../../core/network/rest_service_client.dart';
+import '../data/api/auth_api_client.dart';
 import '../data/datasources/auth_local_data_source.dart';
+import '../data/datasources/auth_remote_data_source.dart';
 import '../data/repositories/auth_repository_impl.dart';
 import '../domain/entities/auth_session.dart';
 import '../domain/repositories/auth_repository.dart';
@@ -10,8 +17,41 @@ import 'auth_state.dart';
 
 final errorMapperProvider = Provider<ErrorMapper>((_) => const ErrorMapper());
 
+final publicDioProvider = Provider<Dio>((ref) {
+  final environment = ref.watch(appEnvironmentProvider);
+  final dio = Dio(
+    BaseOptions(
+      baseUrl: environment.gatewayBaseUrl,
+      connectTimeout: const Duration(seconds: 12),
+      receiveTimeout: const Duration(seconds: 12),
+      sendTimeout: const Duration(seconds: 12),
+      contentType: Headers.jsonContentType,
+      responseType: ResponseType.json,
+    ),
+  );
+
+  final retryInterceptor = RetryInterceptor();
+  retryInterceptor.attach(dio);
+
+  dio.interceptors.addAll(<Interceptor>[
+    retryInterceptor,
+    AppLoggingInterceptor(enabled: environment.enableHttpLogs),
+  ]);
+
+  return dio;
+});
+
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
+  final environment = ref.watch(appEnvironmentProvider);
+  final authApiClient = AuthApiClient(
+    RestServiceClient(
+      dio: ref.watch(publicDioProvider),
+      config: environment.service(ServiceKind.auth),
+    ),
+  );
+
   return AuthRepositoryImpl(
+    remoteDataSource: AuthRemoteDataSource(authApiClient),
     localDataSource: AuthLocalDataSource(ref.watch(tokenStorageProvider)),
   );
 });
