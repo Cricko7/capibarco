@@ -1,79 +1,39 @@
 # api-gateway
 
-Mobile BFF и edge gateway для PetMatch. Сервис принимает внешний REST/JSON и WebSocket трафик от мобильного клиента, выполняет security/rate limit/observability и проксирует запросы во внутренние gRPC-сервисы.
+Mobile BFF and edge gateway for PetMatch. It exposes public REST/JSON, multipart upload, SSE, and WebSocket endpoints, then proxies calls to internal gRPC services.
 
-## Responsibilities
+## Base URL
 
-- REST/JSON facade для мобильных клиентов.
-- Регистрация, логин, JWT validation и RBAC delegation через auth-service.
-- Guest sessions для анонимного просмотра ленты.
-- Redis-backed rate limiting по IP, actor и role.
-- gRPC orchestration для auth, animal, feed, matching, chat, billing, analytics и будущего notification-service.
-- Multipart upload фото животных в MinIO/S3 с записью metadata в animal-service.
-- WebSocket chat bridge в chat-service bidirectional streaming.
-- Optional SSE bridge в notification-service server streaming.
-- Kafka operational events для rejected requests и WebSocket lifecycle.
-- Prometheus metrics, health checks, structured slog logging, request id propagation и graceful shutdown.
+Local Docker Compose: `http://localhost:18088`.
 
-## Local Run
+OpenAPI: `GET /openapi.yaml`.
 
-Из корня `backend`:
+## Common Rules
 
-```powershell
-docker compose up --build -d api-gateway
-```
+Public endpoints:
 
-Gateway будет доступен на `http://localhost:18088`.
+- `GET /healthz`
+- `GET /readyz`
+- `GET /metrics`
+- `GET /openapi.yaml`
+- `POST /v1/auth/guest-sessions`
+- `POST /v1/auth/register`
+- `POST /v1/auth/login`
 
-Локальный запуск без Docker из `backend/api-gateway`:
-
-```powershell
-go mod tidy
-go test ./...
-go run ./cmd/api-gateway
-```
-
-OpenAPI is served at `/openapi.yaml`.
-
-## Общие правила
-
-Base URL для Docker Compose:
-
-```text
-http://localhost:18088
-```
-
-JSON requests используют:
-
-```http
-Content-Type: application/json
-```
-
-Protected endpoints принимают JWT:
+All other endpoints require one of:
 
 ```http
 Authorization: Bearer <access_token>
-```
-
-или guest session:
-
-```http
 X-Guest-Session-Token: <guest_session_token>
 ```
 
-Для mutating requests передавайте idempotency key:
+JSON requests use `Content-Type: application/json`.
 
-```http
-Idempotency-Key: <unique-operation-key>
-```
+Mutating endpoints should send `Idempotency-Key: <unique-operation-key>`. `X-Idempotency-Key` is also accepted.
 
-Gateway возвращает `X-Request-ID`. Можно передать свой:
+The gateway returns `X-Request-ID`. Clients may send `X-Request-ID` explicitly.
 
-```http
-X-Request-ID: req-123
-```
-
-Ошибки возвращаются в RFC 7807-like формате:
+Errors are returned as problem JSON:
 
 ```json
 {
@@ -85,148 +45,48 @@ X-Request-ID: req-123
 }
 ```
 
-Типовые статусы:
+## Endpoint Summary
 
-| Status | Meaning |
-| --- | --- |
-| `200` | Запрос выполнен |
-| `201` | Resource/command создан |
-| `204` | Preflight OPTIONS принят |
-| `400` | Невалидный request |
-| `401` | Нет или невалиден token |
-| `403` | Недостаточно permissions |
-| `404` | Resource не найден |
-| `429` | Rate limit exceeded |
-| `500` | Internal error |
-| `502` | Downstream unavailable/deadline |
-
-## Список методов
-
-| Method | Path | Auth | Назначение |
+| Method | Path | Auth | Purpose |
 | --- | --- | --- | --- |
-| `GET` | `/healthz` | no | Liveness |
-| `GET` | `/readyz` | no | Readiness, Redis ping |
-| `GET` | `/metrics` | no | Prometheus metrics |
-| `GET` | `/openapi.yaml` | no | OpenAPI spec |
-| `OPTIONS` | `/*` | no | CORS preflight |
-| `POST` | `/v1/auth/guest-sessions` | no | Guest session |
-| `POST` | `/v1/auth/register` | no | Registration через auth-service |
-| `POST` | `/v1/auth/login` | no | Login через auth-service |
-| `GET` | `/v1/feed` | JWT/guest | Feed cards |
-| `GET` | `/v1/animals/{animal_id}` | JWT/guest | Animal profile |
-| `POST` | `/v1/animals` | JWT/guest | Create animal |
-| `POST` | `/v1/animals/{animal_id}/photos` | JWT/guest | Upload animal photo |
-| `POST` | `/v1/animals/{animal_id}/swipe` | JWT/guest | Swipe animal |
-| `POST` | `/v1/animals/{animal_id}:swipe` | JWT/guest | Contract alias для swipe |
-| `GET` | `/v1/animals/{animal_id}/stats` | JWT/guest | Animal analytics |
-| `GET` | `/v1/chat/conversations` | JWT/guest | List conversations |
-| `GET` | `/v1/chat/conversations/{conversation_id}/messages` | JWT/guest | List messages |
-| `POST` | `/v1/chat/conversations/{conversation_id}/messages` | JWT/guest | Send message |
-| `GET` | `/ws/chat` | JWT/guest | WebSocket chat bridge |
-| `POST` | `/v1/billing/donation-intents` | JWT/guest | Create donation intent |
-| `GET` | `/v1/notifications` | JWT/guest | List notifications |
-| `GET` | `/v1/notifications/stream` | JWT/guest | SSE notification stream |
-| `POST` | `/v1/notifications/devices` | JWT/guest | Register push token |
-| `DELETE` | `/v1/notifications/devices/{device_token_id}` | JWT/guest | Unregister push token |
-| `POST` | `/v1/notifications/{notification_id}/read` | JWT/guest | Mark notification read |
-| `POST` | `/v1/notifications/{notification_id}:read` | JWT/guest | Contract alias для read |
+| `GET` | `/healthz` | no | Liveness check. |
+| `GET` | `/readyz` | no | Readiness check; verifies Redis/rate limiter dependency. |
+| `GET` | `/metrics` | no | Prometheus metrics. |
+| `GET` | `/openapi.yaml` | no | OpenAPI document. |
+| `POST` | `/v1/auth/guest-sessions` | no | Create a guest session token. |
+| `POST` | `/v1/auth/register` | no | Register user and return auth tokens. |
+| `POST` | `/v1/auth/login` | no | Authenticate user and return auth tokens. |
+| `GET` | `/v1/feed` | yes | Get feed cards. |
+| `GET` | `/v1/animals/{animal_id}` | yes | Get animal profile. |
+| `POST` | `/v1/animals` | yes | Create animal profile. |
+| `POST` | `/v1/animals/{animal_id}/photos` | yes | Upload animal photo. |
+| `POST` | `/v1/animals/{animal_id}/swipe` | yes | Swipe animal. |
+| `POST` | `/v1/animals/{animal_id}:swipe` | yes | Contract alias for swipe. |
+| `GET` | `/v1/animals/{animal_id}/stats` | yes | Get animal analytics. |
+| `GET` | `/v1/profiles` | yes | Search profiles. |
+| `GET` | `/v1/profiles/{profile_id}` | yes | Get profile. |
+| `PATCH` | `/v1/profiles/{profile_id}` | yes | Create or update profile fields. |
+| `GET` | `/v1/profiles/{profile_id}/reviews` | yes | List profile reviews. |
+| `POST` | `/v1/profiles/{profile_id}/reviews` | yes | Create review for profile. |
+| `GET` | `/v1/profiles/{profile_id}/reputation` | yes | Get reputation summary. |
+| `PATCH` | `/v1/reviews/{review_id}` | yes | Update review. |
+| `GET` | `/v1/chat/conversations` | yes | List chat conversations. |
+| `GET` | `/v1/chat/conversations/{conversation_id}/messages` | yes | List conversation messages. |
+| `POST` | `/v1/chat/conversations/{conversation_id}/messages` | yes | Send chat message. |
+| `GET` | `/ws/chat` | yes | WebSocket bridge to chat-service. |
+| `POST` | `/v1/billing/donation-intents` | yes | Create donation payment intent. |
+| `POST` | `/v1/notifications/devices` | yes | Register push device token. |
+| `DELETE` | `/v1/notifications/devices/{device_token_id}` | yes | Unregister push device token. |
+| `GET` | `/v1/notifications` | yes | List notifications. |
+| `GET` | `/v1/notifications/stream` | yes | SSE notification stream. |
+| `POST` | `/v1/notifications/{notification_id}/read` | yes | Mark notification as read. |
+| `POST` | `/v1/notifications/{notification_id}:read` | yes | Contract alias for mark-read. |
 
-## Auth flow
-
-### POST /v1/auth/register
-
-Регистрирует пользователя. Gateway сам подставляет `tenant_id` из config, локально это `default`.
-
-```bash
-curl -i -X POST http://localhost:18088/v1/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "alice@example.com",
-    "password": "CorrectHorseBatteryStaple!",
-    "locale": "ru-RU"
-  }'
-```
-
-Response `201`:
-
-```json
-{
-  "user": {
-    "id": "4979adec-763c-43e9-bbdb-7186638898de",
-    "tenant_id": "default",
-    "email": "alice@example.com",
-    "is_active": true,
-    "created_at": "2026-04-18T06:29:52Z",
-    "updated_at": "2026-04-18T06:29:52Z"
-  },
-  "access_token": "eyJhbGciOiJFZERTQSIs...",
-  "refresh_token": "P_MQonrQwqyFt_ZwnyVTkSJQLvvkG4-ArC53wNn9nc8",
-  "expires_at": "2026-04-18T06:44:52Z"
-}
-```
-
-### POST /v1/auth/login
-
-```bash
-curl -i -X POST http://localhost:18088/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "alice@example.com",
-    "password": "CorrectHorseBatteryStaple!",
-    "locale": "ru-RU"
-  }'
-```
-
-Response `200`:
-
-```json
-{
-  "user": {
-    "id": "4979adec-763c-43e9-bbdb-7186638898de",
-    "tenant_id": "default",
-    "email": "alice@example.com",
-    "is_active": true
-  },
-  "access_token": "eyJhbGciOiJFZERTQSIs...",
-  "refresh_token": "aWQoJlUvoBsj06ZAauSpGPokdunxZ_mz9pG12DREvSY",
-  "expires_at": "2026-04-18T06:44:52Z"
-}
-```
-
-Wrong password возвращает `401`.
-
-### POST /v1/auth/guest-sessions
-
-Создает signed guest session для анонимного просмотра feed.
-
-```bash
-curl -i -X POST http://localhost:18088/v1/auth/guest-sessions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "device_id": "ios-device-123",
-    "locale": "ru-RU"
-  }'
-```
-
-Response `201`:
-
-```json
-{
-  "guest_session_token": "eyJzaWQiOiJnc3QtLi4u",
-  "expires_at": "2026-04-19T06:00:00Z",
-  "allowed_scopes": ["feed:read", "animal:read"]
-}
-```
-
-## Operational endpoints
+## Operations
 
 ### GET /healthz
 
-```bash
-curl -i http://localhost:18088/healthz
-```
-
-Response `200`:
+Returns `200` when the HTTP process is alive.
 
 ```json
 {"status":"ok"}
@@ -234,90 +94,96 @@ Response `200`:
 
 ### GET /readyz
 
-```bash
-curl -i http://localhost:18088/readyz
-```
-
-Response `200`:
+Returns `200` when required runtime dependencies are ready.
 
 ```json
 {"status":"ready"}
 ```
 
-Если Redis недоступен, вернется `503`.
+Returns `503` when Redis/rate limiter ping fails.
 
 ### GET /metrics
 
-```bash
-curl -i http://localhost:18088/metrics
-```
-
-Response `200`: Prometheus text format.
+Returns Prometheus text metrics.
 
 ### GET /openapi.yaml
 
-```bash
-curl -i http://localhost:18088/openapi.yaml
+Returns the OpenAPI YAML bundled with the gateway.
+
+## Auth
+
+### POST /v1/auth/guest-sessions
+
+Creates a guest token for anonymous read flows.
+
+Request:
+
+```json
+{
+  "device_id": "ios-device-123",
+  "locale": "ru-RU"
+}
 ```
 
-Response `200`: OpenAPI YAML.
+Response `201`:
 
-### OPTIONS /*
-
-CORS preflight.
-
-```bash
-curl -i -X OPTIONS http://localhost:18088/v1/feed \
-  -H "Origin: http://localhost:3000" \
-  -H "Access-Control-Request-Method: GET"
+```json
+{
+  "guest_session_token": "<token>",
+  "expires_at": "2026-04-19T06:00:00Z",
+  "allowed_scopes": ["feed:read", "animal:read"]
+}
 ```
 
-Response `204`.
+### POST /v1/auth/register
+
+Registers a user through auth-service. Gateway injects configured `tenant_id`.
+
+Request:
+
+```json
+{
+  "email": "alice@example.com",
+  "password": "CorrectHorseBatteryStaple!",
+  "locale": "ru-RU"
+}
+```
+
+Response `201`:
+
+```json
+{
+  "user": {
+    "id": "user-id",
+    "tenant_id": "default",
+    "email": "alice@example.com",
+    "is_active": true
+  },
+  "access_token": "<jwt>",
+  "refresh_token": "<refresh-token>",
+  "expires_at": "2026-04-18T06:44:52Z"
+}
+```
+
+### POST /v1/auth/login
+
+Authenticates a user through auth-service. Response `200` has the same token shape as register. Invalid credentials return `401`.
 
 ## Feed
 
 ### GET /v1/feed
 
-Возвращает окно карточек feed.
+Returns feed cards from feed-service.
 
-Query parameters:
-
-| Name | Type | Description |
-| --- | --- | --- |
-| `surface` | integer | Feed surface enum |
-| `page_size` | integer | Размер страницы, gateway применяет cap |
-| `page_token` | string | Cursor следующей страницы |
-
-JWT example:
-
-```bash
-curl -i "http://localhost:18088/v1/feed?page_size=10&surface=1" \
-  -H "Authorization: Bearer $ACCESS_TOKEN"
-```
-
-Guest example:
-
-```bash
-curl -i "http://localhost:18088/v1/feed?page_size=10" \
-  -H "X-Guest-Session-Token: $GUEST_SESSION_TOKEN"
-```
+Query: `surface` integer, `page_size` integer, `page_token` string.
 
 Response `200`:
 
 ```json
 {
-  "cards": [
-    {
-      "card_id": "card-123",
-      "animal": {
-        "animal_id": "animal-123",
-        "name": "Mila",
-        "species": "SPECIES_CAT"
-      }
-    }
-  ],
-  "next_page_token": "cursor-2",
-  "feed_session_id": "feed-session-abc"
+  "cards": [],
+  "next_page_token": "",
+  "feed_session_id": "feed-session-id"
 }
 ```
 
@@ -325,26 +191,17 @@ Response `200`:
 
 ### GET /v1/animals/{animal_id}
 
-```bash
-curl -i http://localhost:18088/v1/animals/animal-123 \
-  -H "Authorization: Bearer $ACCESS_TOKEN"
-```
+Returns one animal profile.
 
 Response `200`:
 
 ```json
 {
   "animal": {
-    "animal_id": "animal-123",
-    "owner_profile_id": "profile-123",
-    "owner_type": "OWNER_TYPE_SHELTER",
+    "animal_id": "animal-id",
+    "owner_profile_id": "profile-id",
     "name": "Mila",
     "species": "SPECIES_CAT",
-    "breed": "Mixed",
-    "sex": "ANIMAL_SEX_FEMALE",
-    "size": "ANIMAL_SIZE_SMALL",
-    "age_months": 8,
-    "description": "Calm and friendly",
     "status": "ANIMAL_STATUS_AVAILABLE"
   }
 }
@@ -352,67 +209,49 @@ Response `200`:
 
 ### POST /v1/animals
 
-Создает animal profile. Body использует JSON-представление `petmatch.animal.v1.AnimalProfile`.
+Creates an animal profile. Body is JSON mapping of `petmatch.animal.v1.AnimalProfile`.
 
-```bash
-curl -i -X POST http://localhost:18088/v1/animals \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
-  -H "Idempotency-Key: create-animal-001" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "owner_profile_id": "profile-123",
-    "owner_type": "OWNER_TYPE_SHELTER",
-    "name": "Mila",
-    "species": "SPECIES_CAT",
-    "breed": "Mixed",
-    "sex": "ANIMAL_SEX_FEMALE",
-    "size": "ANIMAL_SIZE_SMALL",
-    "age_months": 8,
-    "description": "Calm and friendly",
-    "traits": ["calm", "friendly"],
-    "vaccinated": true,
-    "sterilized": true,
-    "status": "ANIMAL_STATUS_DRAFT",
-    "visibility": "VISIBILITY_PRIVATE"
-  }'
-```
-
-Response `201`:
+Request:
 
 ```json
 {
-  "animal": {
-    "animal_id": "animal-123",
-    "owner_profile_id": "profile-123",
-    "name": "Mila",
-    "species": "SPECIES_CAT",
-    "status": "ANIMAL_STATUS_DRAFT"
-  }
+  "owner_profile_id": "profile-id",
+  "owner_type": "OWNER_TYPE_SHELTER",
+  "name": "Mila",
+  "species": "SPECIES_CAT",
+  "breed": "Mixed",
+  "sex": "ANIMAL_SEX_FEMALE",
+  "size": "ANIMAL_SIZE_SMALL",
+  "age_months": 8,
+  "description": "Calm and friendly",
+  "traits": ["calm", "friendly"],
+  "vaccinated": true,
+  "sterilized": true,
+  "status": "ANIMAL_STATUS_DRAFT",
+  "visibility": "VISIBILITY_PRIVATE"
 }
 ```
 
+Response `201` returns `{ "animal": ... }`.
+
 ### POST /v1/animals/{animal_id}/photos
 
-Multipart upload фото животного.
+Uploads a JPEG or PNG photo using multipart form data. Gateway uploads bytes to object storage, reads image dimensions, and sends photo metadata to animal-service.
 
-```bash
-curl -i -X POST http://localhost:18088/v1/animals/animal-123/photos \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
-  -H "Idempotency-Key: upload-photo-001" \
-  -F "photo=@./cat.jpg;type=image/jpeg" \
-  -F "sort_order=1"
-```
+Form fields: `photo` file is required; `sort_order` integer is optional.
 
 Response `201`:
 
 ```json
 {
   "animal": {
-    "animal_id": "animal-123",
+    "animal_id": "animal-id",
     "photos": [
       {
-        "photo_id": "photo-123",
-        "url": "http://localhost:19098/petmatch-photos/animals/animal-123/photo.jpg",
+        "photo_id": "photo-id",
+        "url": "http://storage/animals/animal-id/photo.jpg",
+        "width": 1024,
+        "height": 768,
         "content_type": "image/jpeg",
         "sort_order": 1
       }
@@ -423,381 +262,279 @@ Response `201`:
 
 ### POST /v1/animals/{animal_id}/swipe
 
-```bash
-curl -i -X POST http://localhost:18088/v1/animals/animal-123/swipe \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
-  -H "Idempotency-Key: swipe-001" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "owner_profile_id": "owner-profile-123",
-    "direction": 1,
-    "feed_card_id": "card-123",
-    "feed_session_id": "feed-session-abc"
-  }'
-```
+Records a swipe through matching-service.
 
-Response `200`:
+Request:
 
 ```json
 {
-  "swipe": {
-    "swipe_id": "swipe-123",
-    "actor_id": "profile-456",
-    "animal_id": "animal-123",
-    "direction": "SWIPE_DIRECTION_LIKE"
-  },
-  "match": {
-    "match_id": "match-123",
-    "animal_id": "animal-123"
-  },
-  "conversation_id": "conversation-123"
+  "owner_profile_id": "owner-profile-id",
+  "direction": 1,
+  "feed_card_id": "card-id",
+  "feed_session_id": "feed-session-id"
 }
 ```
+
+`direction` accepts either an enum number or proto enum string, for example `SWIPE_DIRECTION_RIGHT`.
+
+Response `200` returns swipe result, optional match, and optional `conversation_id`.
 
 ### POST /v1/animals/{animal_id}:swipe
 
-Alias для contract path.
-
-```bash
-curl -i -X POST http://localhost:18088/v1/animals/animal-123:swipe \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
-  -H "Idempotency-Key: swipe-002" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "owner_profile_id": "owner-profile-123",
-    "direction": 2
-  }'
-```
+Same behavior and body as `/v1/animals/{animal_id}/swipe`.
 
 ### GET /v1/animals/{animal_id}/stats
 
-Возвращает animal analytics через analytics-service.
+Returns animal analytics. Query: `bucket` integer time bucket enum.
 
-```bash
-curl -i "http://localhost:18088/v1/animals/animal-123/stats?bucket=1" \
-  -H "Authorization: Bearer $ACCESS_TOKEN"
-```
+## Profiles and Reviews
 
-Response `200`:
+### GET /v1/profiles
+
+Searches user profiles.
+
+Query: `profile_type` repeatable integer, `city`, `min_average_rating`, `query`, `include_suspended`, `page_size`, `page_token`.
+
+Response `200` returns `{ "profiles": [], "page": { "next_page_token": "" } }`.
+
+### GET /v1/profiles/{profile_id}
+
+Returns one profile.
+
+### PATCH /v1/profiles/{profile_id}
+
+Updates or creates a profile. Gateway accepts wrapper form:
 
 ```json
 {
-  "stats": {
-    "animal_id": "animal-123",
-    "views": 120,
-    "likes": 18,
-    "swipes": 44,
-    "matches": 6
-  }
+  "profile": {
+    "display_name": "Alice",
+    "bio": "Shelter volunteer",
+    "address": {"city": "Moscow"},
+    "visibility": 1
+  },
+  "update_mask": ["display_name", "bio", "address", "visibility"]
 }
 ```
+
+Gateway also accepts flat snake_case JSON:
+
+```json
+{
+  "display_name": "Alice",
+  "bio": "Shelter volunteer",
+  "address": {"city": "Moscow"},
+  "visibility": 1,
+  "update_mask": ["display_name", "bio", "address", "visibility"]
+}
+```
+
+Response `200` returns `{ "profile": ... }`.
+
+### GET /v1/profiles/{profile_id}/reviews
+
+Lists reviews for a profile. Query: `page_size`, `page_token`.
+
+### POST /v1/profiles/{profile_id}/reviews
+
+Creates a review for the target profile.
+
+Request:
+
+```json
+{
+  "rating": 5,
+  "text": "Great adopter",
+  "match_id": "match-id"
+}
+```
+
+Response `201` returns `{ "review": ... }`.
+
+### GET /v1/profiles/{profile_id}/reputation
+
+Returns reputation summary for a profile.
+
+### PATCH /v1/reviews/{review_id}
+
+Updates a review.
+
+Request:
+
+```json
+{
+  "review": {
+    "rating": 4,
+    "text": "Updated text",
+    "visibility": 1
+  },
+  "update_mask": ["rating", "text", "visibility"]
+}
+```
+
+Response `200` returns `{ "review": ... }`.
 
 ## Chat
 
 ### GET /v1/chat/conversations
 
-```bash
-curl -i "http://localhost:18088/v1/chat/conversations?page_size=20" \
-  -H "Authorization: Bearer $ACCESS_TOKEN"
-```
-
-Response `200`:
-
-```json
-{
-  "conversations": [
-    {
-      "conversation_id": "conversation-123",
-      "match_id": "match-123",
-      "animal_id": "animal-123",
-      "adopter_profile_id": "profile-456",
-      "owner_profile_id": "profile-123",
-      "status": "CONVERSATION_STATUS_ACTIVE",
-      "unread_count": 2
-    }
-  ],
-  "page": {
-    "next_page_token": "cursor-2"
-  }
-}
-```
+Lists conversations for the authenticated actor. Query: `page_size`, `page_token`.
 
 ### GET /v1/chat/conversations/{conversation_id}/messages
 
-```bash
-curl -i "http://localhost:18088/v1/chat/conversations/conversation-123/messages?page_size=30" \
-  -H "Authorization: Bearer $ACCESS_TOKEN"
-```
-
-Response `200`:
-
-```json
-{
-  "messages": [
-    {
-      "message_id": "message-123",
-      "conversation_id": "conversation-123",
-      "sender_profile_id": "profile-456",
-      "type": "MESSAGE_TYPE_TEXT",
-      "text": "Здравствуйте! Можно узнать подробнее?",
-      "sent_at": "2026-04-18T06:30:00Z"
-    }
-  ],
-  "page": {
-    "next_page_token": "cursor-2"
-  }
-}
-```
+Lists messages in a conversation. Missing or invalid conversation IDs return `404`. Query: `page_size`, `page_token`.
 
 ### POST /v1/chat/conversations/{conversation_id}/messages
 
-```bash
-curl -i -X POST http://localhost:18088/v1/chat/conversations/conversation-123/messages \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
-  -H "Idempotency-Key: send-message-001" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "type": 1,
-    "text": "Здравствуйте! Можно узнать подробнее?",
-    "client_message_id": "client-msg-001"
-  }'
-```
+Sends a message.
 
-Response `201`:
+Request:
 
 ```json
 {
-  "message": {
-    "message_id": "message-123",
-    "conversation_id": "conversation-123",
-    "sender_profile_id": "profile-456",
-    "type": "MESSAGE_TYPE_TEXT",
-    "text": "Здравствуйте! Можно узнать подробнее?",
-    "sent_at": "2026-04-18T06:30:00Z"
-  }
+  "type": 1,
+  "text": "Hello",
+  "client_message_id": "client-message-id"
 }
 ```
 
-## WebSocket chat
+Response `201` returns `{ "message": ... }`.
+
+## WebSocket
 
 ### GET /ws/chat
 
-WebSocket bridge в chat-service.
+Upgrades to WebSocket and bridges JSON text frames to chat-service bidirectional gRPC stream.
 
-```bash
-wscat -c "ws://localhost:18088/ws/chat" \
-  -H "Authorization: Bearer $ACCESS_TOKEN"
+Authentication is the same as protected REST endpoints:
+
+```http
+Authorization: Bearer <access_token>
 ```
 
-Или через query token:
+The OpenAPI contract also documents `access_token` as a query parameter:
 
-```bash
-wscat -c "ws://localhost:18088/ws/chat?access_token=$ACCESS_TOKEN"
+```text
+ws://localhost:18088/ws/chat?access_token=<access_token>
 ```
 
-Client frame example:
+Client frames are JSON mapping of `petmatch.chat.v1.ClientChatFrame`.
+
+Example client frame:
 
 ```json
 {
-  "type": "CHAT_FRAME_TYPE_MESSAGE",
   "message": {
-    "conversation_id": "conversation-123",
+    "conversation_id": "conversation-id",
     "type": "MESSAGE_TYPE_TEXT",
-    "text": "Привет!"
+    "text": "Hello"
   }
 }
 ```
 
-Server frame example:
+Server frames are JSON mapping of `petmatch.chat.v1.ServerChatFrame`.
+
+Example server frame:
 
 ```json
 {
-  "type": "CHAT_FRAME_TYPE_ACK",
   "message": {
-    "message_id": "message-123",
-    "conversation_id": "conversation-123"
+    "message_id": "message-id",
+    "conversation_id": "conversation-id",
+    "text": "Hello"
   }
 }
 ```
 
-Обычный HTTP GET без WebSocket upgrade вернет `400`.
+On connect and disconnect the gateway publishes operational Kafka events with connection id, actor id, request id, IP/user-agent, and timestamps.
 
 ## Billing
 
 ### POST /v1/billing/donation-intents
 
-Создает donation payment intent.
+Creates a donation payment intent.
 
-```bash
-curl -i -X POST http://localhost:18088/v1/billing/donation-intents \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
-  -H "Idempotency-Key: donation-001" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "target_type": 1,
-    "target_id": "shelter-123",
-    "amount": {
-      "currency_code": "RUB",
-      "units": 1000,
-      "nanos": 0
-    },
-    "provider": "yookassa"
-  }'
-```
-
-Response `201`:
+Request:
 
 ```json
 {
-  "donation": {
-    "donation_id": "donation-123",
-    "payer_profile_id": "profile-456",
-    "target_type": "DONATION_TARGET_TYPE_SHELTER",
-    "target_id": "shelter-123",
-    "amount": {
-      "currency_code": "RUB",
-      "units": 1000
-    },
-    "status": "PAYMENT_STATUS_PENDING",
-    "provider": "yookassa"
+  "target_type": 1,
+  "target_id": "shelter-id",
+  "amount": {
+    "currency_code": "RUB",
+    "units": 1000,
+    "nanos": 0
   },
-  "payment_url": "https://pay.example/checkout/donation-123",
-  "client_secret": "secret-123"
+  "provider": "yookassa"
 }
 ```
+
+Response `201` returns donation details, `payment_url`, and `client_secret`.
 
 ## Notifications
 
-Notification-service пока optional/future service. В локальном compose он может быть выключен через `API_GATEWAY_GRPC_NOTIFICATION_ENABLED=false`.
-
-### GET /v1/notifications
-
-```bash
-curl -i "http://localhost:18088/v1/notifications?page_size=30" \
-  -H "Authorization: Bearer $ACCESS_TOKEN"
-```
-
-Response `200`:
-
-```json
-{
-  "notifications": [
-    {
-      "notification_id": "notification-123",
-      "recipient_profile_id": "profile-456",
-      "title": "Новый матч",
-      "body": "У вас новый матч по анкете Mila"
-    }
-  ],
-  "page": {
-    "next_page_token": "cursor-2"
-  }
-}
-```
-
-### GET /v1/notifications/stream
-
-SSE stream уведомлений.
-
-```bash
-curl -N -i http://localhost:18088/v1/notifications/stream \
-  -H "Authorization: Bearer $ACCESS_TOKEN"
-```
-
-Event example:
-
-```text
-event: notification
-data: {"notification_id":"notification-123","title":"Новый матч","body":"У вас новый матч"}
-```
-
 ### POST /v1/notifications/devices
 
-Регистрирует push token.
+Registers a push device token.
 
-```bash
-curl -i -X POST http://localhost:18088/v1/notifications/devices \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "token": "apns-or-fcm-token",
-    "platform": "ios",
-    "locale": "ru-RU"
-  }'
-```
-
-Response `201`:
+Request:
 
 ```json
 {
-  "device_token_id": "device-token-123"
+  "token": "apns-or-fcm-token",
+  "platform": "ios",
+  "locale": "ru-RU"
 }
 ```
+
+Response `201` returns `{ "device_token_id": "device-token-id" }`.
 
 ### DELETE /v1/notifications/devices/{device_token_id}
 
-```bash
-curl -i -X DELETE http://localhost:18088/v1/notifications/devices/device-token-123 \
-  -H "Authorization: Bearer $ACCESS_TOKEN"
+Unregisters a push device token. Response `200` returns `{}`.
+
+### GET /v1/notifications
+
+Lists notifications for the authenticated actor. Query: `page_size`, `page_token`.
+
+### GET /v1/notifications/stream
+
+Opens an SSE stream from notification-service. Headers are flushed immediately after the downstream stream is opened.
+
+Response headers:
+
+```http
+Content-Type: text/event-stream
+Cache-Control: no-cache
+Connection: keep-alive
 ```
 
-Response `200`:
+Event format:
 
-```json
-{}
+```text
+event: notification
+data: {"notification_id":"notification-id","title":"New match","body":"You have a new match"}
 ```
 
 ### POST /v1/notifications/{notification_id}/read
 
-```bash
-curl -i -X POST http://localhost:18088/v1/notifications/notification-123/read \
-  -H "Authorization: Bearer $ACCESS_TOKEN"
-```
-
-Response `200`:
-
-```json
-{
-  "notification": {
-    "notification_id": "notification-123",
-    "read_at": "2026-04-18T06:30:00Z"
-  }
-}
-```
+Marks a notification as read. Response `200` returns `{ "notification": ... }`.
 
 ### POST /v1/notifications/{notification_id}:read
 
-Alias для contract path.
+Same behavior as `/v1/notifications/{notification_id}/read`.
 
-```bash
-curl -i -X POST http://localhost:18088/v1/notifications/notification-123:read \
-  -H "Authorization: Bearer $ACCESS_TOKEN"
-```
+## Local Run
 
-## Полный smoke пример
+From `backend`:
 
 ```powershell
-$base = "http://localhost:18088"
-$email = "gateway-smoke-$([guid]::NewGuid().ToString('N'))@example.com"
-$password = "CorrectHorseBatteryStaple!"
-
-$body = @{
-  email = $email
-  password = $password
-  locale = "ru-RU"
-} | ConvertTo-Json -Compress
-
-$register = Invoke-RestMethod -Method Post -Uri "$base/v1/auth/register" -ContentType "application/json" -Body $body
-$token = $register.access_token
-
-Invoke-RestMethod -Uri "$base/healthz"
-Invoke-RestMethod -Uri "$base/readyz"
-Invoke-RestMethod -Uri "$base/v1/feed?page_size=3" -Headers @{ Authorization = "Bearer $token" }
-Invoke-RestMethod -Uri "$base/v1/chat/conversations?page_size=2" -Headers @{ Authorization = "Bearer $token" }
+docker compose up --build -d api-gateway
 ```
 
-## Known local limitations
+From `backend/api-gateway` without Docker:
 
-- `notification-service` может быть выключен в локальном compose, поэтому notification endpoints зависят от `API_GATEWAY_GRPC_NOTIFICATION_ENABLED`.
-- `analytics-service` и `billing-service` должны быть доступны для соответствующих downstream endpoints.
-- Redpanda init может логировать `topic_already_exists` при повторном запуске. Это не ошибка gateway, если topics уже созданы.
+```powershell
+go test ./...
+go run ./cmd/api-gateway
+```
