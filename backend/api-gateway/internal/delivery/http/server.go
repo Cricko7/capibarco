@@ -361,8 +361,10 @@ func (s *Server) getProfile(c *gin.Context) {
 }
 
 func (s *Server) listProfileAnimals(c *gin.Context) {
+	profileID := c.Param("profile_id")
 	out, err := s.app.ListOwnerAnimals(c.Request.Context(), gateway.ListOwnerAnimalsInput{
-		OwnerProfileID: c.Param("profile_id"),
+		OwnerProfileID: profileID,
+		Statuses:       profileAnimalStatusesForViewer(profileID, c.Request.Context()),
 		PageSize:       queryInt32(c, "page_size"),
 		PageToken:      c.Query("page_token"),
 	})
@@ -371,6 +373,17 @@ func (s *Server) listProfileAnimals(c *gin.Context) {
 		return
 	}
 	writeProto(c, http.StatusOK, out)
+}
+
+func profileAnimalStatusesForViewer(profileID string, ctx context.Context) []animalv1.AnimalStatus {
+	principal, ok := gateway.PrincipalFromContext(ctx)
+	if ok && principal.ActorID == profileID {
+		return []animalv1.AnimalStatus{
+			animalv1.AnimalStatus_ANIMAL_STATUS_DRAFT,
+			animalv1.AnimalStatus_ANIMAL_STATUS_AVAILABLE,
+		}
+	}
+	return []animalv1.AnimalStatus{animalv1.AnimalStatus_ANIMAL_STATUS_AVAILABLE}
 }
 
 func (s *Server) searchProfiles(c *gin.Context) {

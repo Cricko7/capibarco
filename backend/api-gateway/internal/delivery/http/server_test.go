@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"bytes"
+	"context"
 	"image"
 	"image/color"
 	"image/png"
@@ -10,8 +11,10 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	animalv1 "github.com/petmatch/petmatch/gen/go/petmatch/animal/v1"
 	commonv1 "github.com/petmatch/petmatch/gen/go/petmatch/common/v1"
 	userv1 "github.com/petmatch/petmatch/gen/go/petmatch/user/v1"
+	"github.com/petmatch/petmatch/internal/app/gateway"
 )
 
 func TestDecodeUpdateProfileBodyAcceptsFlatSnakeCaseProfile(t *testing.T) {
@@ -99,6 +102,29 @@ func TestUserProfileJSONUsesSnakeCaseContract(t *testing.T) {
 	}
 	if got := address["city"]; got != "Moscow" {
 		t.Fatalf("address.city = %v, want Moscow", got)
+	}
+}
+
+func TestProfileAnimalStatusesForViewerIncludesDraftsForOwnerOnly(t *testing.T) {
+	ownerCtx := gateway.WithPrincipal(
+		context.Background(),
+		gateway.Principal{ActorID: "profile-1"},
+	)
+	ownerStatuses := profileAnimalStatusesForViewer("profile-1", ownerCtx)
+	if len(ownerStatuses) != 2 ||
+		ownerStatuses[0] != animalv1.AnimalStatus_ANIMAL_STATUS_DRAFT ||
+		ownerStatuses[1] != animalv1.AnimalStatus_ANIMAL_STATUS_AVAILABLE {
+		t.Fatalf("owner statuses = %v, want [DRAFT AVAILABLE]", ownerStatuses)
+	}
+
+	viewerCtx := gateway.WithPrincipal(
+		context.Background(),
+		gateway.Principal{ActorID: "viewer-1"},
+	)
+	viewerStatuses := profileAnimalStatusesForViewer("profile-1", viewerCtx)
+	if len(viewerStatuses) != 1 ||
+		viewerStatuses[0] != animalv1.AnimalStatus_ANIMAL_STATUS_AVAILABLE {
+		t.Fatalf("viewer statuses = %v, want [AVAILABLE]", viewerStatuses)
 	}
 }
 

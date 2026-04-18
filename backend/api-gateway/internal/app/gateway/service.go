@@ -193,7 +193,21 @@ func (s *Service) CreateAnimal(ctx context.Context, input CreateAnimalInput) (*a
 	if err != nil {
 		return nil, fmt.Errorf("create animal: %w", err)
 	}
+	if shouldPublishCreatedAnimal(input.Animal) {
+		out, err = s.deps.Animal.PublishAnimal(ctx, out.GetAnimalId())
+		if err != nil {
+			return nil, fmt.Errorf("publish animal: %w", err)
+		}
+	}
 	return out, nil
+}
+
+func shouldPublishCreatedAnimal(animal *animalv1.AnimalProfile) bool {
+	if animal == nil {
+		return false
+	}
+	return animal.GetStatus() == animalv1.AnimalStatus_ANIMAL_STATUS_AVAILABLE ||
+		animal.GetVisibility() == commonv1.Visibility_VISIBILITY_PUBLIC
 }
 
 // UploadAnimalPhoto stores photo metadata in animal-service after object upload.

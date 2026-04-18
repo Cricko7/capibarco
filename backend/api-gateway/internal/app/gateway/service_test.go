@@ -115,6 +115,32 @@ func TestServiceCreateAnimalUsesProvidedOwnerType(t *testing.T) {
 	require.Equal(t, "profile-kennel-1", animalClient.lastCreate.OwnerProfileId)
 }
 
+func TestServiceCreateAnimalPublishesWhenRequested(t *testing.T) {
+	animalClient := &fakeAnimal{}
+	svc := NewService(Dependencies{
+		Auth:          &fakeAuth{},
+		Animal:        animalClient,
+		GuestSessions: domain.NewGuestSessionCodec([]byte("secret"), time.Hour),
+		Clock:         fixedClock{},
+		Defaults:      Defaults{TenantID: "petmatch", MaxPageSize: 10},
+	})
+	ctx := WithPrincipal(context.Background(), Principal{ActorID: "profile-1", TenantID: "tenant-1"})
+
+	animal, err := svc.CreateAnimal(ctx, CreateAnimalInput{
+		IdempotencyKey: "idem-animal",
+		Animal: &animalv1.AnimalProfile{
+			OwnerProfileId: "profile-1",
+			Name:           "Mila",
+			Status:         animalv1.AnimalStatus_ANIMAL_STATUS_AVAILABLE,
+			Visibility:     commonv1.Visibility_VISIBILITY_PUBLIC,
+		},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, animal)
+	require.Equal(t, animalv1.AnimalStatus_ANIMAL_STATUS_AVAILABLE, animal.Status)
+	require.Equal(t, "animal-1", animalClient.lastPublishAnimalID)
+}
+
 func TestServiceCreateConversationUsesCurrentPrincipal(t *testing.T) {
 	chatClient := &fakeChat{}
 	svc := NewService(Dependencies{
@@ -203,8 +229,9 @@ func (fakeMatching) RecordSwipe(context.Context, *matchingv1.RecordSwipeRequest)
 }
 
 type fakeAnimal struct {
-	lastCreate    *animalv1.CreateAnimalRequest
-	lastListOwner *animalv1.ListOwnerAnimalsRequest
+	lastCreate          *animalv1.CreateAnimalRequest
+	lastListOwner       *animalv1.ListOwnerAnimalsRequest
+	lastPublishAnimalID string
 }
 
 func (fakeAnimal) GetAnimal(context.Context, string) (*animalv1.AnimalProfile, error) {
@@ -212,7 +239,17 @@ func (fakeAnimal) GetAnimal(context.Context, string) (*animalv1.AnimalProfile, e
 }
 func (f *fakeAnimal) CreateAnimal(_ context.Context, req *animalv1.CreateAnimalRequest) (*animalv1.AnimalProfile, error) {
 	f.lastCreate = req
+	if req.Animal != nil && req.Animal.AnimalId == "" {
+		req.Animal.AnimalId = "animal-1"
+	}
 	return req.Animal, nil
+}
+func (f *fakeAnimal) PublishAnimal(_ context.Context, animalID string) (*animalv1.AnimalProfile, error) {
+	f.lastPublishAnimalID = animalID
+	return &animalv1.AnimalProfile{
+		AnimalId: animalID,
+		Status:   animalv1.AnimalStatus_ANIMAL_STATUS_AVAILABLE,
+	}, nil
 }
 func (fakeAnimal) AddPhoto(context.Context, string, *commonv1.Photo, string) (*animalv1.AnimalProfile, error) {
 	return nil, nil
