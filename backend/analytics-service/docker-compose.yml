@@ -7,22 +7,8 @@ services:
       POSTGRES_PASSWORD: analytics
     ports:
       - "15438:5432"
-
-  redpanda:
-    image: docker.redpanda.com/redpandadata/redpanda:v25.1.1
-    command:
-      - redpanda
-      - start
-      - --overprovisioned
-      - --smp=1
-      - --memory=512M
-      - --reserve-memory=0M
-      - --node-id=0
-      - --check=false
-      - --kafka-addr=PLAINTEXT://0.0.0.0:9092
-      - --advertise-kafka-addr=PLAINTEXT://redpanda:9092
-    ports:
-      - "19093:9092"
+    volumes:
+      - analytics_pg_data:/var/lib/postgresql/data
 
   analytics-migrate:
     image: migrate/migrate:v4.17.1
@@ -40,11 +26,11 @@ services:
         condition: service_started
       analytics-migrate:
         condition: service_completed_successfully
-      redpanda:
-        condition: service_started
     ports:
-      - "19096:19096"
+      - "18088:18088"
     environment:
       ANALYTICS_POSTGRES_DSN: postgres://analytics:analytics@analytics-postgres:5432/analytics?sslmode=disable
-      ANALYTICS_GRPC_ADDR: :19096
-      ANALYTICS_KAFKA_BROKERS_0: redpanda:9092
+      ANALYTICS_APP_ENV: local
+
+volumes:
+  analytics_pg_data:

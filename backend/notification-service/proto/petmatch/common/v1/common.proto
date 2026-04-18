@@ -1,0 +1,128 @@
+syntax = "proto3";
+
+package petmatch.common.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/petmatch/petmatch/gen/go/petmatch/common/v1;commonv1";
+
+// ActorType describes the business identity category of the caller or owner.
+enum ActorType {
+  ACTOR_TYPE_UNSPECIFIED = 0;
+  ACTOR_TYPE_GUEST = 1;
+  ACTOR_TYPE_USER = 2;
+  ACTOR_TYPE_SHELTER = 3;
+  ACTOR_TYPE_ADMIN = 4;
+}
+
+// OwnerType describes who can own an animal profile.
+enum OwnerType {
+  OWNER_TYPE_UNSPECIFIED = 0;
+  OWNER_TYPE_USER = 1;
+  OWNER_TYPE_SHELTER = 2;
+  OWNER_TYPE_KENNEL = 3;
+}
+
+// Visibility controls whether a resource can be shown to clients.
+enum Visibility {
+  VISIBILITY_UNSPECIFIED = 0;
+  VISIBILITY_PRIVATE = 1;
+  VISIBILITY_PUBLIC = 2;
+  VISIBILITY_UNLISTED = 3;
+  VISIBILITY_SUSPENDED = 4;
+}
+
+// PageRequest contains cursor pagination parameters.
+message PageRequest {
+  // Maximum number of items to return. Services should cap this value.
+  int32 page_size = 1;
+
+  // Opaque cursor returned by a previous response.
+  string page_token = 2;
+}
+
+// PageResponse contains cursor pagination metadata.
+message PageResponse {
+  // Opaque cursor for the next page. Empty when no more data is available.
+  string next_page_token = 1;
+
+  // Optional approximate total count when cheap to compute.
+  optional int32 total_size = 2;
+}
+
+// Principal is the authenticated or guest actor propagated between services.
+message Principal {
+  string actor_id = 1;
+  ActorType actor_type = 2;
+  string tenant_id = 3;
+  repeated string roles = 4;
+  repeated string permissions = 5;
+  bool is_guest = 6;
+}
+
+// MoneyAmount represents a decimal money amount without floating point errors.
+message MoneyAmount {
+  // ISO-4217 currency code, for example USD, EUR, or RUB.
+  string currency_code = 1;
+
+  // Whole units of the currency amount.
+  int64 units = 2;
+
+  // Number of nano units. The value must have the same sign as units.
+  int32 nanos = 3;
+}
+
+// GeoPoint is a location used for proximity search and display.
+message GeoPoint {
+  double latitude = 1;
+  double longitude = 2;
+  string geohash = 3;
+}
+
+// Address is a redacted physical address suitable for public profile display.
+message Address {
+  string country_code = 1;
+  string region = 2;
+  string city = 3;
+  string district = 4;
+  GeoPoint location = 5;
+}
+
+// Photo describes an externally stored image asset.
+message Photo {
+  string photo_id = 1;
+  string url = 2;
+  string blurhash = 3;
+  int32 width = 4;
+  int32 height = 5;
+  string content_type = 6;
+  int32 sort_order = 7;
+  google.protobuf.Timestamp created_at = 8;
+}
+
+// AuditMetadata is shared by mutable resources.
+message AuditMetadata {
+  google.protobuf.Timestamp created_at = 1;
+  google.protobuf.Timestamp updated_at = 2;
+  string created_by = 3;
+  string updated_by = 4;
+}
+
+// EventEnvelope contains cross-service event metadata for Kafka messages.
+message EventEnvelope {
+  string event_id = 1;
+  string event_type = 2;
+  string schema_version = 3;
+  string producer = 4;
+  google.protobuf.Timestamp occurred_at = 5;
+  string trace_id = 6;
+  string correlation_id = 7;
+  string idempotency_key = 8;
+  string partition_key = 9;
+}
+
+// TimeRange filters entities or metrics by event time.
+message TimeRange {
+  google.protobuf.Timestamp from = 1;
+  google.protobuf.Timestamp to = 2;
+}

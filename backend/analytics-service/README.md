@@ -1,10 +1,13 @@
 # analytics-service
 
-Production-oriented analytics microservice for ingesting user interactions via Kafka and serving analytics via gRPC.
+Production-oriented analytics microservice for ingesting user interactions and aggregating profile metrics.
 
-## Transport
-- **Kafka**: consumes raw events from `analytics.events.raw`, publishes ranking feedback to `analytics.ranking.feedback`.
-- **gRPC**: serves query API (`GetMetrics`, `GetExtendedStats`, `GetRankingFeedback`) and gRPC health checks.
+## Features
+- Idempotent raw event ingestion.
+- Aggregation by hourly/daily buckets.
+- Extended stats endpoint with entitlement check (`owner` / `shelter`).
+- Ranking feedback endpoint for feed-service.
+- Prometheus metrics, request-id, structured logs, rate limiting, graceful shutdown.
 
 ## Local run
 ```bash
@@ -13,6 +16,5 @@ make test
 docker compose up --build
 ```
 
-## Contract
-- Proto file: `api/analytics.proto`
-- Generated gRPC stubs: `internal/delivery/grpc/pb`
+## API
+OpenAPI spec: `api/openapi.yaml`.

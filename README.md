@@ -32,6 +32,7 @@ capibarco/
 - `backend/chat-service` - сервис чатов.
 - `backend/feed-service` - сервис ленты рекомендаций.
 - `backend/matching-service` - сервис свайпов, матчей и создания чатов по right swipe.
+- `backend/api-gateway` - мобильный REST/WebSocket фасад поверх внутренних gRPC-сервисов.
 
 Общие ресурсы:
 
@@ -64,7 +65,10 @@ docker compose up --build
 | Chat service | `18083` | `19092` |
 | Feed service | `18084` | `18085` |
 | Matching service | `18086` | `19094` |
+| API Gateway | `18088` | - |
 | PostgreSQL | - | `15432` |
+| Redis | - | `16379` |
+| MinIO | `19098` | `19099` |
 | Redpanda Kafka API | - | `19093` |
 
 Compose поднимает один PostgreSQL-контейнер с отдельными базами для сервисов, один Redpanda Kafka-compatible брокер, миграции и приложения.

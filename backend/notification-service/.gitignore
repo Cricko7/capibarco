@@ -1,0 +1,6 @@
+/notification-service
+/notification-service.exe
+/bin/
+/tmp/
+.coverage*
+*.log

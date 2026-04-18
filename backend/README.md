@@ -37,7 +37,7 @@ Host ports:
 - Feed HTTP: `18084`, gRPC: `18085`
 - Matching HTTP: `18086`, gRPC: `19094`
 - User HTTP: `18087`, gRPC: `19095`
-- Analytics gRPC: `19096`
+- Analytics HTTP: `18088`
 - PostgreSQL: `15432`
 - Redpanda Kafka API: `19093`
 

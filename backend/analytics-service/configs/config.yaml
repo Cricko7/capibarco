@@ -1,15 +1,15 @@
 app:
   name: analytics-service
   env: local
-  version: 0.2.0
-grpc:
-  addr: ":19096"
+  version: 0.1.0
+http:
+  addr: ":18088"
   shutdown_timeout: 10s
+  read_timeout: 10s
+  write_timeout: 15s
+  idle_timeout: 30s
 postgres:
   dsn: "postgres://analytics:analytics@analytics-postgres:5432/analytics?sslmode=disable"
-kafka:
-  brokers:
-    - redpanda:9092
-  ingest_topic: analytics.events.raw
-  ranking_feedback_topic: analytics.ranking.feedback
-  consumer_group: analytics-service
+rate:
+  rps: 100
+  burst: 200

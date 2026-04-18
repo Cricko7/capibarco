@@ -1,0 +1,150 @@
+syntax = "proto3";
+
+package petmatch.analytics.v1;
+
+import "google/protobuf/timestamp.proto";
+import "petmatch/common/v1/common.proto";
+
+option go_package = "github.com/petmatch/petmatch/gen/go/petmatch/analytics/v1;analyticsv1";
+
+// AnalyticsService owns event ingestion and aggregated animal profile statistics.
+service AnalyticsService {
+  rpc TrackEvent(TrackEventRequest) returns (TrackEventResponse);
+  rpc BatchTrackEvents(BatchTrackEventsRequest) returns (BatchTrackEventsResponse);
+  rpc GetAnimalStats(GetAnimalStatsRequest) returns (GetAnimalStatsResponse);
+  rpc QueryMetrics(QueryMetricsRequest) returns (QueryMetricsResponse);
+  rpc StreamAnimalStats(StreamAnimalStatsRequest) returns (stream AnimalStats);
+}
+
+enum AnalyticsEventType {
+  ANALYTICS_EVENT_TYPE_UNSPECIFIED = 0;
+  ANALYTICS_EVENT_TYPE_FEED_CARD_SERVED = 1;
+  ANALYTICS_EVENT_TYPE_CARD_OPENED = 2;
+  ANALYTICS_EVENT_TYPE_SWIPE_LEFT = 3;
+  ANALYTICS_EVENT_TYPE_SWIPE_RIGHT = 4;
+  ANALYTICS_EVENT_TYPE_CHAT_STARTED = 5;
+  ANALYTICS_EVENT_TYPE_MESSAGE_SENT = 6;
+  ANALYTICS_EVENT_TYPE_DONATION_SUCCEEDED = 7;
+  ANALYTICS_EVENT_TYPE_BOOST_ACTIVATED = 8;
+}
+
+enum MetricName {
+  METRIC_NAME_UNSPECIFIED = 0;
+  METRIC_NAME_VIEWS = 1;
+  METRIC_NAME_CARD_OPENS = 2;
+  METRIC_NAME_SWIPE_LEFTS = 3;
+  METRIC_NAME_SWIPE_RIGHTS = 4;
+  METRIC_NAME_CTR = 5;
+  METRIC_NAME_CHAT_STARTS = 6;
+  METRIC_NAME_DONATIONS = 7;
+  METRIC_NAME_DONATION_AMOUNT = 8;
+}
+
+enum TimeBucket {
+  TIME_BUCKET_UNSPECIFIED = 0;
+  TIME_BUCKET_HOUR = 1;
+  TIME_BUCKET_DAY = 2;
+  TIME_BUCKET_WEEK = 3;
+  TIME_BUCKET_MONTH = 4;
+}
+
+message AnalyticsEvent {
+  string analytics_event_id = 1;
+  AnalyticsEventType type = 2;
+  string animal_id = 3;
+  optional string actor_id = 4;
+  optional string owner_profile_id = 5;
+  optional string feed_card_id = 6;
+  optional string match_id = 7;
+  optional string conversation_id = 8;
+  map<string, string> dimensions = 9;
+  map<string, double> values = 10;
+  google.protobuf.Timestamp occurred_at = 11;
+}
+
+message MetricPoint {
+  MetricName metric = 1;
+  double value = 2;
+  google.protobuf.Timestamp bucket_start = 3;
+  google.protobuf.Timestamp bucket_end = 4;
+}
+
+message AnimalStats {
+  string animal_id = 1;
+  string owner_profile_id = 2;
+  repeated MetricPoint metrics = 3;
+  double ctr = 4;
+  google.protobuf.Timestamp calculated_at = 5;
+}
+
+message AnalyticsFilter {
+  optional string animal_id = 1;
+  optional string owner_profile_id = 2;
+  repeated MetricName metrics = 3;
+  petmatch.common.v1.TimeRange time_range = 4;
+  TimeBucket bucket = 5;
+}
+
+message TrackEventRequest {
+  AnalyticsEvent event = 1;
+  string idempotency_key = 2;
+}
+
+message TrackEventResponse {
+  string analytics_event_id = 1;
+  bool accepted = 2;
+}
+
+message BatchTrackEventsRequest {
+  repeated AnalyticsEvent events = 1;
+  string batch_id = 2;
+}
+
+message BatchTrackEventsResponse {
+  int32 accepted_count = 1;
+  repeated string rejected_event_ids = 2;
+}
+
+message GetAnimalStatsRequest {
+  string animal_id = 1;
+  petmatch.common.v1.TimeRange time_range = 2;
+  TimeBucket bucket = 3;
+}
+
+message GetAnimalStatsResponse {
+  AnimalStats stats = 1;
+}
+
+message QueryMetricsRequest {
+  AnalyticsFilter filter = 1;
+  petmatch.common.v1.PageRequest page = 2;
+}
+
+message QueryMetricsResponse {
+  repeated AnimalStats stats = 1;
+  petmatch.common.v1.PageResponse page = 2;
+}
+
+message StreamAnimalStatsRequest {
+  string owner_profile_id = 1;
+  repeated string animal_ids = 2;
+  TimeBucket bucket = 3;
+}
+
+message AnalyticsEventIngestedEvent {
+  petmatch.common.v1.EventEnvelope envelope = 1;
+  AnalyticsEvent event = 2;
+}
+
+message AnimalStatsAggregatedEvent {
+  petmatch.common.v1.EventEnvelope envelope = 1;
+  AnimalStats stats = 2;
+}
+
+message MetricThresholdReachedEvent {
+  petmatch.common.v1.EventEnvelope envelope = 1;
+  string animal_id = 2;
+  MetricName metric = 3;
+  double value = 4;
+  double threshold = 5;
+}
