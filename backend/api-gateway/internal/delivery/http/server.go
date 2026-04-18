@@ -745,7 +745,7 @@ type updateProfileJSON struct {
 type profileJSON struct {
 	ProfileID   string              `json:"profile_id"`
 	AuthUserID  string              `json:"auth_user_id"`
-	ProfileType userv1.ProfileType  `json:"profile_type"`
+	ProfileType profileTypeJSON     `json:"profile_type"`
 	DisplayName string              `json:"display_name"`
 	Bio         string              `json:"bio"`
 	AvatarURL   string              `json:"avatar_url"`
@@ -758,13 +758,40 @@ func (p profileJSON) toProto() *userv1.UserProfile {
 	return &userv1.UserProfile{
 		ProfileId:   p.ProfileID,
 		AuthUserId:  p.AuthUserID,
-		ProfileType: p.ProfileType,
+		ProfileType: userv1.ProfileType(p.ProfileType),
 		DisplayName: p.DisplayName,
 		Bio:         p.Bio,
 		AvatarUrl:   p.AvatarURL,
 		Address:     p.Address,
 		Visibility:  p.Visibility,
 	}
+}
+
+type profileTypeJSON int32
+
+func (p *profileTypeJSON) UnmarshalJSON(data []byte) error {
+	var number int32
+	if err := json.Unmarshal(data, &number); err == nil {
+		*p = profileTypeJSON(number)
+		return nil
+	}
+	var name string
+	if err := json.Unmarshal(data, &name); err != nil {
+		return err
+	}
+	switch name {
+	case "PROFILE_TYPE_UNSPECIFIED":
+		*p = profileTypeJSON(userv1.ProfileType_PROFILE_TYPE_UNSPECIFIED)
+	case "PROFILE_TYPE_USER":
+		*p = profileTypeJSON(userv1.ProfileType_PROFILE_TYPE_USER)
+	case "PROFILE_TYPE_SHELTER":
+		*p = profileTypeJSON(userv1.ProfileType_PROFILE_TYPE_SHELTER)
+	case "PROFILE_TYPE_KENNEL":
+		*p = profileTypeJSON(userv1.ProfileType_PROFILE_TYPE_KENNEL)
+	default:
+		return fmt.Errorf("unknown profile type %q", name)
+	}
+	return nil
 }
 
 func writeProto(c *gin.Context, status int, msg proto.Message) {

@@ -42,6 +42,16 @@ func TestDecodeUpdateProfileBodyAcceptsWrappedSnakeCaseProfile(t *testing.T) {
 	}
 }
 
+func TestDecodeUpdateProfileBodyAcceptsStringProfileType(t *testing.T) {
+	profile, _, err := decodeUpdateProfileBodyBytes([]byte(`{"profile":{"profile_type":"PROFILE_TYPE_KENNEL","display_name":"Alice"}}`))
+	if err != nil {
+		t.Fatalf("decodeUpdateProfileBodyBytes() error = %v", err)
+	}
+	if profile.GetProfileType() != userv1.ProfileType_PROFILE_TYPE_KENNEL {
+		t.Fatalf("profile_type decoded as %v, want PROFILE_TYPE_KENNEL", profile.GetProfileType())
+	}
+}
+
 func TestDecodeSwipeAnimalBodyAcceptsStringDirection(t *testing.T) {
 	input, err := decodeSwipeAnimalBodyBytes([]byte(`{"owner_profile_id":"owner-1","direction":"SWIPE_DIRECTION_RIGHT"}`))
 	if err != nil {
