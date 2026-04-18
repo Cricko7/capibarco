@@ -12,6 +12,7 @@ capibarco/
     billing-service/
     chat-service/
     feed-service/
+    matching-service/
     proto/
     migrations/
     docker/
@@ -30,6 +31,7 @@ capibarco/
 - `backend/billing-service` - сервис платежей, донатов и бустов.
 - `backend/chat-service` - сервис чатов.
 - `backend/feed-service` - сервис ленты рекомендаций.
+- `backend/matching-service` - сервис свайпов, матчей и создания чатов по right swipe.
 
 Общие ресурсы:
 
@@ -61,6 +63,7 @@ docker compose up --build
 | Billing service | `18082` | `19091` |
 | Chat service | `18083` | `19092` |
 | Feed service | `18084` | `18085` |
+| Matching service | `18086` | `19094` |
 | PostgreSQL | - | `15432` |
 | Redpanda Kafka API | - | `19093` |
 
@@ -75,7 +78,7 @@ cd backend/auth-service
 go test ./...
 ```
 
-То же самое можно выполнить для `animal-service`, `billing-service`, `chat-service` и `feed-service`.
+То же самое можно выполнить для `animal-service`, `billing-service`, `chat-service`, `feed-service` и `matching-service`.
 
 ## Документация
 

@@ -9,6 +9,7 @@ This directory contains the consolidated backend microservices.
 - `billing-service` from `D:\Programming\Back-architecture\billing-service`
 - `chat-service` from `D:\Programming\Back-architecture\chat-service`
 - `feed-service` from `D:\Programming\Back-architecture\feed-service`
+- `matching-service` owns animal swipes, one-sided matches, and chat creation requests.
 
 Each service remains an independent Go module with its own `go.mod` and `Dockerfile`.
 
@@ -33,6 +34,7 @@ Host ports:
 - Billing HTTP: `18082`, gRPC: `19091`
 - Chat HTTP: `18083`, gRPC: `19092`
 - Feed HTTP: `18084`, gRPC: `18085`
+- Matching HTTP: `18086`, gRPC: `19094`
 - User HTTP: `18087`, gRPC: `19095`
 - PostgreSQL: `15432`
 - Redpanda Kafka API: `19093`
