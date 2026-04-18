@@ -129,7 +129,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     FilledButton.tonalIcon(
                       onPressed: state.isSaving
                           ? null
-                          : () => _showEditSheet(context, ref, state.profile!),
+                          : () => _showEditSheet(
+                              context,
+                              ref,
+                              state.profile!,
+                              authState.session?.user.email ?? '',
+                            ),
                       icon: const Icon(Icons.edit_rounded),
                       label: Text(l10n.editProfile),
                     ),
@@ -159,9 +164,15 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     BuildContext context,
     WidgetRef ref,
     profile,
+    String email,
   ) async {
     final l10n = AppLocalizations.of(context);
-    final nameController = TextEditingController(text: profile.displayName);
+    final fallbackDisplayName = _displayNameFallback(email);
+    final nameController = TextEditingController(
+      text: profile.displayName.isEmpty
+          ? fallbackDisplayName
+          : profile.displayName,
+    );
     final bioController = TextEditingController(text: profile.bio);
     final cityController = TextEditingController(text: profile.city);
     var profileType = profile.typeCode;
@@ -232,7 +243,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               const SizedBox(height: 16),
               FilledButton(
                 onPressed: () async {
-                  await ref
+                  final success = await ref
                       .read(profileControllerProvider.notifier)
                       .updateProfile(
                         displayName: nameController.text.trim(),
@@ -243,7 +254,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                             ? l10n.createKennelProfile
                             : l10n.profileUpdated,
                       );
-                  if (context.mounted) {
+                  if (success && context.mounted) {
                     Navigator.of(context).pop();
                   }
                 },
@@ -258,5 +269,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     nameController.dispose();
     bioController.dispose();
     cityController.dispose();
+  }
+
+  String _displayNameFallback(String email) {
+    final localPart = email.split('@').first.trim();
+    return localPart.isEmpty ? 'New profile' : localPart;
   }
 }

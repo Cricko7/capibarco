@@ -106,7 +106,7 @@ class ProfileController extends Notifier<ProfileState> {
     }
   }
 
-  Future<void> updateProfile({
+  Future<bool> updateProfile({
     required String displayName,
     required String bio,
     required String city,
@@ -117,17 +117,24 @@ class ProfileController extends Notifier<ProfileState> {
         .read(authControllerProvider.notifier)
         .currentProfileId;
     if (profileId == null) {
-      return;
+      return false;
     }
+
+    final currentDisplayName = state.profile?.displayName.trim() ?? '';
+    final normalizedDisplayName = displayName.trim().isNotEmpty
+        ? displayName.trim()
+        : (currentDisplayName.isNotEmpty
+              ? currentDisplayName
+              : _defaultDisplayName);
 
     state = state.copyWith(isSaving: true, clearError: true, clearInfo: true);
     try {
       final profile = await _repository.updateProfile(
         profileId: profileId,
         authUserId: _authUserId,
-        displayName: displayName,
-        bio: bio,
-        city: city,
+        displayName: normalizedDisplayName,
+        bio: bio.trim(),
+        city: city.trim(),
         profileType: profileType,
       );
       state = state.copyWith(
@@ -135,8 +142,10 @@ class ProfileController extends Notifier<ProfileState> {
         isSaving: false,
         infoMessage: infoMessage ?? 'Profile updated.',
       );
+      return true;
     } catch (error) {
       state = state.copyWith(isSaving: false, errorMessage: error.toString());
+      return false;
     }
   }
 }
