@@ -6,15 +6,22 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	animalv1 "github.com/petmatch/petmatch/gen/go/petmatch/animal/v1"
 	commonv1 "github.com/petmatch/petmatch/gen/go/petmatch/common/v1"
 	userv1 "github.com/petmatch/petmatch/gen/go/petmatch/user/v1"
 	"github.com/petmatch/petmatch/internal/app/gateway"
+	"github.com/petmatch/petmatch/internal/config"
+	kafkaevents "github.com/petmatch/petmatch/internal/infra/kafka"
+	"github.com/petmatch/petmatch/internal/metrics"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 func TestDecodeUpdateProfileBodyAcceptsFlatSnakeCaseProfile(t *testing.T) {
@@ -160,5 +167,37 @@ func TestBeginSSEWritesHeadersBeforeFirstEvent(t *testing.T) {
 	}
 	if got := recorder.Header().Get("Cache-Control"); got != "no-cache" {
 		t.Fatalf("Cache-Control = %q, want no-cache", got)
+	}
+}
+
+func TestPublishAnimalRouteIsRegistered(t *testing.T) {
+	registry := prometheus.NewRegistry()
+	server := New(
+		config.Config{
+			HTTP: config.HTTPConfig{
+				MaxBodyBytes: 1 << 20,
+			},
+			Rate: config.RateConfig{
+				Window: time.Minute,
+			},
+		},
+		nil,
+		nil,
+		nil,
+		nil,
+		kafkaevents.NoopPublisher{},
+		nil,
+		registry,
+		metrics.New(registry),
+		slog.New(slog.NewTextHandler(io.Discard, nil)),
+	)
+
+	request := httptest.NewRequest(http.MethodPost, "/v1/animals/animal-1/publish", nil)
+	recorder := httptest.NewRecorder()
+
+	server.server.Handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d to confirm route is registered", recorder.Code, http.StatusUnauthorized)
 	}
 }
