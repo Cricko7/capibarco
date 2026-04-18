@@ -1,0 +1,28 @@
+openapi: 3.0.3
+info:
+  title: Auth Service HTTP Ops API
+  version: 1.0.0
+  description: Health and metrics endpoints for auth-service operations.
+servers:
+  - url: http://localhost:8080
+paths:
+  /healthz:
+    get:
+      summary: Liveness probe
+      responses:
+        '200':
+          description: Service process is alive
+  /readyz:
+    get:
+      summary: Readiness probe
+      responses:
+        '200':
+          description: Dependencies are ready
+        '503':
+          description: Dependencies are not ready
+  /metrics:
+    get:
+      summary: Prometheus metrics
+      responses:
+        '200':
+          description: Prometheus text exposition format
