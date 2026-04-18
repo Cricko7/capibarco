@@ -58,6 +58,23 @@ func TestServiceSwipeAnimalRequiresIdempotencyKey(t *testing.T) {
 	require.ErrorIs(t, err, ErrIdempotencyKeyRequired)
 }
 
+func TestServiceUploadAnimalPhotoRequiresPrincipal(t *testing.T) {
+	svc := NewService(Dependencies{
+		Auth:          &fakeAuth{},
+		Animal:        &fakeAnimal{},
+		GuestSessions: domain.NewGuestSessionCodec([]byte("secret"), time.Hour),
+		Clock:         fixedClock{},
+		Defaults:      Defaults{TenantID: "petmatch", MaxPageSize: 10},
+	})
+
+	_, err := svc.UploadAnimalPhoto(context.Background(), UploadAnimalPhotoInput{
+		AnimalID:       "animal-1",
+		Photo:          &commonv1.Photo{PhotoId: "photo-1", Url: "https://cdn.example/photo.jpg"},
+		IdempotencyKey: "idem-photo",
+	})
+	require.ErrorIs(t, err, ErrUnauthenticated)
+}
+
 func TestServiceCreateGuestSessionReturnsTokenAndScopes(t *testing.T) {
 	svc := NewService(Dependencies{
 		Auth:          &fakeAuth{},

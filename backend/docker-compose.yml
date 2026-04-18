@@ -251,8 +251,11 @@ services:
       - |
         sleep 5
         for topic in \
+          animal.profile_created \
+          animal.profile_updated \
           animal.profile_published \
           animal.profile_archived \
+          animal.photo_added \
           animal.status_changed \
           matching.swipe_recorded \
           matching.match_created \

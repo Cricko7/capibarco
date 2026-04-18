@@ -183,6 +183,9 @@ func (s *Service) CreateAnimal(ctx context.Context, input CreateAnimalInput) (*a
 
 // UploadAnimalPhoto stores photo metadata in animal-service after object upload.
 func (s *Service) UploadAnimalPhoto(ctx context.Context, input UploadAnimalPhotoInput) (*animalv1.AnimalProfile, error) {
+	if _, err := requiredPrincipal(ctx); err != nil {
+		return nil, err
+	}
 	if input.IdempotencyKey == "" {
 		return nil, ErrIdempotencyKeyRequired
 	}

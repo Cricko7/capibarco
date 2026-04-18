@@ -3,8 +3,12 @@ package httpserver
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"image"
+	_ "image/jpeg"
+	_ "image/png"
 	"io"
 	"log/slog"
 	"mime/multipart"
@@ -256,6 +260,11 @@ func (s *Server) uploadAnimalPhoto(c *gin.Context) {
 		return
 	}
 	defer closeFile(file)
+	width, height, err := imageDimensions(file)
+	if err != nil {
+		problem.Abort(c, fmt.Errorf("%w: decode photo dimensions: %v", gateway.ErrInvalidInput, err))
+		return
+	}
 	url, err := s.uploader.Upload(c.Request.Context(), objectName(c.Param("animal_id"), header), file, header.Size, header.Header.Get("Content-Type"))
 	if err != nil {
 		problem.Abort(c, err)
@@ -264,6 +273,8 @@ func (s *Server) uploadAnimalPhoto(c *gin.Context) {
 	photo := &commonv1.Photo{
 		PhotoId:     uuid.NewString(),
 		Url:         url,
+		Width:       width,
+		Height:      height,
 		ContentType: header.Header.Get("Content-Type"),
 		SortOrder:   int32(formInt(c, "sort_order")),
 		CreatedAt:   timestamppb.Now(),
@@ -290,14 +301,9 @@ func (s *Server) swipeAnimalColon(c *gin.Context) {
 }
 
 func (s *Server) swipeAnimalWithID(c *gin.Context, animalID string) {
-	var input struct {
-		OwnerProfileID string  `json:"owner_profile_id"`
-		Direction      int32   `json:"direction"`
-		FeedCardID     *string `json:"feed_card_id"`
-		FeedSessionID  *string `json:"feed_session_id"`
-	}
-	if err := c.ShouldBindJSON(&input); err != nil {
-		problem.Abort(c, fmt.Errorf("%w: %v", gateway.ErrInvalidInput, err))
+	input, err := decodeSwipeAnimalBody(c)
+	if err != nil {
+		problem.Abort(c, err)
 		return
 	}
 	out, err := s.app.SwipeAnimal(c.Request.Context(), gateway.SwipeAnimalInput{
@@ -380,18 +386,15 @@ func (s *Server) searchProfiles(c *gin.Context) {
 }
 
 func (s *Server) updateProfile(c *gin.Context) {
-	var input struct {
-		Profile    *userv1.UserProfile `json:"profile"`
-		UpdateMask []string            `json:"update_mask"`
-	}
-	if err := c.ShouldBindJSON(&input); err != nil {
-		problem.Abort(c, fmt.Errorf("%w: %v", gateway.ErrInvalidInput, err))
+	profile, updateMask, err := decodeUpdateProfileBody(c)
+	if err != nil {
+		problem.Abort(c, err)
 		return
 	}
 	out, err := s.app.UpdateProfile(c.Request.Context(), gateway.UpdateProfileInput{
 		ProfileID:  c.Param("profile_id"),
-		Profile:    input.Profile,
-		UpdateMask: input.UpdateMask,
+		Profile:    profile,
+		UpdateMask: updateMask,
 	})
 	if err != nil {
 		problem.Abort(c, err)
@@ -599,6 +602,110 @@ func decodeProtoBody(c *gin.Context, msg proto.Message) error {
 	return nil
 }
 
+func decodeUpdateProfileBody(c *gin.Context) (*userv1.UserProfile, []string, error) {
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		return nil, nil, fmt.Errorf("%w: read body: %v", gateway.ErrInvalidInput, err)
+	}
+	profile, updateMask, err := decodeUpdateProfileBodyBytes(body)
+	if err != nil {
+		return nil, nil, fmt.Errorf("%w: decode json: %v", gateway.ErrInvalidInput, err)
+	}
+	return profile, updateMask, nil
+}
+
+func decodeSwipeAnimalBody(c *gin.Context) (swipeAnimalJSON, error) {
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		return swipeAnimalJSON{}, fmt.Errorf("%w: read body: %v", gateway.ErrInvalidInput, err)
+	}
+	input, err := decodeSwipeAnimalBodyBytes(body)
+	if err != nil {
+		return swipeAnimalJSON{}, fmt.Errorf("%w: decode json: %v", gateway.ErrInvalidInput, err)
+	}
+	return input, nil
+}
+
+func decodeSwipeAnimalBodyBytes(body []byte) (swipeAnimalJSON, error) {
+	var input swipeAnimalJSON
+	if err := json.Unmarshal(body, &input); err != nil {
+		return swipeAnimalJSON{}, err
+	}
+	return input, nil
+}
+
+type swipeAnimalJSON struct {
+	OwnerProfileID string         `json:"owner_profile_id"`
+	Direction      swipeDirection `json:"direction"`
+	FeedCardID     *string        `json:"feed_card_id"`
+	FeedSessionID  *string        `json:"feed_session_id"`
+}
+
+type swipeDirection int32
+
+func (d *swipeDirection) UnmarshalJSON(data []byte) error {
+	var number int32
+	if err := json.Unmarshal(data, &number); err == nil {
+		*d = swipeDirection(number)
+		return nil
+	}
+	var name string
+	if err := json.Unmarshal(data, &name); err != nil {
+		return err
+	}
+	value, ok := matchingv1.SwipeDirection_value[name]
+	if !ok {
+		return fmt.Errorf("unknown swipe direction %q", name)
+	}
+	*d = swipeDirection(value)
+	return nil
+}
+
+func decodeUpdateProfileBodyBytes(body []byte) (*userv1.UserProfile, []string, error) {
+	var input updateProfileJSON
+	if err := json.Unmarshal(body, &input); err != nil {
+		return nil, nil, err
+	}
+	if input.Profile == nil {
+		var profile profileJSON
+		if err := json.Unmarshal(body, &profile); err != nil {
+			return nil, nil, err
+		}
+		input.Profile = &profile
+	}
+	return input.Profile.toProto(), input.UpdateMask, nil
+}
+
+type updateProfileJSON struct {
+	Profile    *profileJSON `json:"profile"`
+	UpdateMask []string     `json:"update_mask"`
+}
+
+type profileJSON struct {
+	ProfileID   string              `json:"profile_id"`
+	AuthUserID  string              `json:"auth_user_id"`
+	ProfileType userv1.ProfileType  `json:"profile_type"`
+	DisplayName string              `json:"display_name"`
+	Bio         string              `json:"bio"`
+	AvatarURL   string              `json:"avatar_url"`
+	Address     *commonv1.Address   `json:"address"`
+	Visibility  commonv1.Visibility `json:"visibility"`
+	UpdateMask  []string            `json:"update_mask"`
+}
+
+func (p profileJSON) toProto() *userv1.UserProfile {
+	return &userv1.UserProfile{
+		ProfileId:   p.ProfileID,
+		AuthUserId:  p.AuthUserID,
+		ProfileType: p.ProfileType,
+		DisplayName: p.DisplayName,
+		Bio:         p.Bio,
+		AvatarUrl:   p.AvatarURL,
+		Address:     p.Address,
+		Visibility:  p.Visibility,
+	}
+}
+
 func writeProto(c *gin.Context, status int, msg proto.Message) {
 	body, err := (protojson.MarshalOptions{UseProtoNames: true, EmitUnpopulated: false}).Marshal(msg)
 	if err != nil {
@@ -628,6 +735,17 @@ func idempotencyKey(c *gin.Context) string {
 func objectName(animalID string, header *multipart.FileHeader) string {
 	name := strings.ReplaceAll(filepath.Base(header.Filename), " ", "_")
 	return fmt.Sprintf("animals/%s/%s-%s", animalID, uuid.NewString(), name)
+}
+
+func imageDimensions(file io.ReadSeeker) (int32, int32, error) {
+	cfg, _, err := image.DecodeConfig(file)
+	if _, seekErr := file.Seek(0, io.SeekStart); seekErr != nil && err == nil {
+		err = seekErr
+	}
+	if err != nil {
+		return 0, 0, err
+	}
+	return int32(cfg.Width), int32(cfg.Height), nil
 }
 
 func closeFile(file multipart.File) {

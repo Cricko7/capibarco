@@ -72,6 +72,17 @@ func TestServiceSendMessageRejectsArchivedConversation(t *testing.T) {
 	}
 }
 
+func TestServiceListMessagesReturnsNotFoundForMissingConversation(t *testing.T) {
+	ctx := context.Background()
+	repo := newMemoryRepo()
+	service := appchat.NewService(repo, repo, repo, repo, fixedClock{now: time.Now()}, &fixedIDs{})
+
+	_, _, err := service.ListMessages(ctx, chat.ListMessagesFilter{ConversationID: "missing-conversation"})
+	if !errors.Is(err, chat.ErrNotFound) {
+		t.Fatalf("ListMessages() error = %v, want %v", err, chat.ErrNotFound)
+	}
+}
+
 type fixedClock struct {
 	now time.Time
 }

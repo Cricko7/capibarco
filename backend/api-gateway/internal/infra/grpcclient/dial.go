@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/petmatch/petmatch/internal/app/gateway"
 	"github.com/petmatch/petmatch/internal/config"
 	"github.com/petmatch/petmatch/internal/metrics"
 	"github.com/petmatch/petmatch/internal/pkg/requestid"
@@ -117,6 +118,9 @@ func unaryClientInterceptor(m *metrics.Metrics) grpc.UnaryClientInterceptor {
 	return func(ctx context.Context, method string, req any, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
 		if rid := requestid.From(ctx); rid != "" {
 			ctx = metadata.AppendToOutgoingContext(ctx, "x-request-id", rid)
+		}
+		if principal, ok := gateway.PrincipalFromContext(ctx); ok && principal.ActorID != "" {
+			ctx = metadata.AppendToOutgoingContext(ctx, "x-actor-id", principal.ActorID)
 		}
 		err := invoker(ctx, method, req, reply, cc, opts...)
 		if m != nil {

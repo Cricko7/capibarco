@@ -379,8 +379,13 @@ func mapError(err error) error {
 		return fmt.Errorf("postgres: %w", chat.ErrNotFound)
 	}
 	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-		return fmt.Errorf("postgres unique violation: %w", chat.ErrMissingIdempotencyKey)
+	if errors.As(err, &pgErr) {
+		switch pgErr.Code {
+		case "22P02":
+			return fmt.Errorf("postgres invalid identifier: %w", chat.ErrNotFound)
+		case "23505":
+			return fmt.Errorf("postgres unique violation: %w", chat.ErrMissingIdempotencyKey)
+		}
 	}
 	return fmt.Errorf("postgres: %w", err)
 }

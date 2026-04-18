@@ -122,9 +122,7 @@ func (s *Server) streamNotifications(c *gin.Context) {
 		problem.Abort(c, err)
 		return
 	}
-	c.Header("Content-Type", "text/event-stream")
-	c.Header("Cache-Control", "no-cache")
-	c.Header("Connection", "keep-alive")
+	beginSSE(c)
 	c.Stream(func(w io.Writer) bool {
 		notification, err := stream.Recv()
 		if err != nil {
@@ -141,6 +139,14 @@ func (s *Server) streamNotifications(c *gin.Context) {
 		_, _ = fmt.Fprintf(w, "event: notification\ndata: %s\n\n", payload)
 		return true
 	})
+}
+
+func beginSSE(c *gin.Context) {
+	c.Header("Content-Type", "text/event-stream")
+	c.Header("Cache-Control", "no-cache")
+	c.Header("Connection", "keep-alive")
+	c.Status(http.StatusOK)
+	c.Writer.Flush()
 }
 
 func (s *Server) publishWebSocketEvent(c *gin.Context, topic string, connectionID string, payload map[string]any) {

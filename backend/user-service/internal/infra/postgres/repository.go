@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	app "github.com/petmatch/petmatch/internal/app/user"
 	domain "github.com/petmatch/petmatch/internal/domain/user"
@@ -84,7 +85,7 @@ VALUES ($1,$2,$3,$4,$5,$6,$7,$8, COALESCE((SELECT created_at FROM user_profiles 
 ON CONFLICT(profile_id) DO UPDATE SET auth_user_id=EXCLUDED.auth_user_id, profile_type=EXCLUDED.profile_type, display_name=EXCLUDED.display_name, bio=EXCLUDED.bio, avatar_url=EXCLUDED.avatar_url, city=EXCLUDED.city, visibility=EXCLUDED.visibility, updated_at=EXCLUDED.updated_at
 RETURNING created_at, updated_at`
 	if err := r.pool.QueryRow(ctx, q, p.ID, p.AuthUserID, p.ProfileType, p.DisplayName, p.Bio, p.AvatarURL, p.City, p.Visibility, p.UpdatedAt).Scan(&p.CreatedAt, &p.UpdatedAt); err != nil {
-		return domain.Profile{}, err
+		return domain.Profile{}, mapError(err)
 	}
 	return p, nil
 }
@@ -93,14 +94,14 @@ func (r *Repository) CreateReview(ctx context.Context, rv domain.Review) (domain
 VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`
 	_, err := r.pool.Exec(ctx, q, rv.ID, rv.TargetProfileID, rv.AuthorProfileID, rv.Rating, rv.Text, nullable(rv.MatchID), rv.Visibility, rv.CreatedAt, rv.UpdatedAt)
 	if err != nil {
-		return domain.Review{}, err
+		return domain.Review{}, mapError(err)
 	}
 	return rv, nil
 }
 func (r *Repository) UpdateReview(ctx context.Context, rv domain.Review, _ []string) (domain.Review, error) {
 	_, err := r.pool.Exec(ctx, `UPDATE user_reviews SET rating=$1,text=$2,visibility=$3,updated_at=$4 WHERE review_id=$5`, rv.Rating, rv.Text, rv.Visibility, rv.UpdatedAt, rv.ID)
 	if err != nil {
-		return domain.Review{}, err
+		return domain.Review{}, mapError(err)
 	}
 	return rv, nil
 }
@@ -116,7 +117,7 @@ func (r *Repository) ListReviews(ctx context.Context, targetProfileID string, pa
 	}
 	rows, err := r.pool.Query(ctx, `SELECT review_id,target_profile_id,author_profile_id,rating,text,COALESCE(match_id,''),visibility,created_at,updated_at FROM user_reviews WHERE target_profile_id=$1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`, targetProfileID, limit+1, offset)
 	if err != nil {
-		return nil, "", err
+		return nil, "", mapError(err)
 	}
 	defer rows.Close()
 	out := []domain.Review{}
@@ -132,7 +133,7 @@ func (r *Repository) ListReviews(ctx context.Context, targetProfileID string, pa
 		out = out[:limit]
 		next = strconv.Itoa(offset + limit)
 	}
-	return out, next, rows.Err()
+	return out, next, mapError(rows.Err())
 }
 func (r *Repository) GetReputation(ctx context.Context, profileID string) (domain.Reputation, error) {
 	var rep domain.Reputation
@@ -141,9 +142,28 @@ func (r *Repository) GetReputation(ctx context.Context, profileID string) (domai
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.Reputation{ProfileID: profileID}, nil
 		}
-		return domain.Reputation{}, err
+		return domain.Reputation{}, mapError(err)
 	}
 	return rep, nil
+}
+
+func mapError(err error) error {
+	if err == nil {
+		return nil
+	}
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.ErrNotFound
+	}
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		switch pgErr.Code {
+		case "23503":
+			return fmt.Errorf("%w: related profile not found", domain.ErrNotFound)
+		case "23514":
+			return fmt.Errorf("%w: check constraint violation", domain.ErrInvalidArgument)
+		}
+	}
+	return err
 }
 
 func nullable(v string) any {

@@ -189,6 +189,9 @@ func (s *Service) SendMessage(ctx context.Context, input SendMessageInput) (doma
 // ListMessages returns messages for a conversation.
 func (s *Service) ListMessages(ctx context.Context, filter domain.ListMessagesFilter) ([]domain.Message, string, error) {
 	filter.PageSize = normalizePageSize(filter.PageSize)
+	if _, err := s.conversations.GetConversation(ctx, filter.ConversationID); err != nil {
+		return nil, "", fmt.Errorf("get conversation for messages: %w", err)
+	}
 	items, token, err := s.messages.ListMessages(ctx, filter)
 	if err != nil {
 		return nil, "", fmt.Errorf("list messages: %w", err)
