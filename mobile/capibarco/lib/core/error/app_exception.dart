@@ -13,6 +13,8 @@ class AppException implements Exception {
   final String? type;
   final bool isRetryable;
 
+  bool get isNotFound => statusCode == 404;
+
   bool get isUnauthorized => statusCode == 401;
 
   bool get isOfflineLike =>

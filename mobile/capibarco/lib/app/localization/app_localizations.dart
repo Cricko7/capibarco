@@ -51,39 +51,75 @@ class AppLocalizations {
       'staleData': 'Showing cached data because the network is unavailable.',
       'sessionExpired': 'Session expired. Please sign in again.',
       'profileUpdated': 'Profile updated.',
+      'createKennelProfile': 'Kennel profile created.',
+      'profileType': 'Profile type',
+      'userProfile': 'User',
+      'shelterProfile': 'Shelter',
+      'kennelProfile': 'Kennel',
+      'publishPet': 'Publish pet',
+      'petName': 'Pet name',
+      'species': 'Species',
+      'breed': 'Breed',
+      'sex': 'Sex',
+      'size': 'Size',
+      'ageMonths': 'Age in months',
+      'vaccinated': 'Vaccinated',
+      'sterilized': 'Sterilized',
+      'publishNow': 'Publish immediately',
+      'animalCreated': 'Pet profile created.',
+      'createPetCta': 'Add pet listing',
+      'createProfileFirst': 'Create or update your profile first.',
     },
     'ru': {
       'appTitle': 'Capibarco',
-      'welcomeTitle': 'Тёплый дом для каждого капи-друга',
-      'welcomeSubtitle': 'Production-ready клиент для микросервисов PetMatch.',
-      'signIn': 'Войти',
-      'createAccount': 'Создать аккаунт',
+      'welcomeTitle': 'Find a warm home for every capy-friend',
+      'welcomeSubtitle': 'Production-ready client for PetMatch microservices.',
+      'signIn': 'Sign in',
+      'createAccount': 'Create account',
       'email': 'Email',
-      'password': 'Пароль',
-      'confirmPassword': 'Подтвердите пароль',
-      'noAccount': 'Нет аккаунта?',
-      'haveAccount': 'Уже есть аккаунт?',
-      'feed': 'Лента',
-      'discover': 'Поиск',
-      'notifications': 'Уведомления',
-      'profile': 'Профиль',
-      'retry': 'Повторить',
-      'save': 'Сохранить',
-      'signOut': 'Выйти',
-      'editProfile': 'Редактировать профиль',
-      'city': 'Город',
-      'bio': 'О себе',
-      'searchProfiles': 'Поиск профилей',
-      'searchHint': 'Имя, приют, питомник...',
-      'emptyFeed': 'Сейчас доступных питомцев нет.',
-      'emptyProfiles': 'Подходящие профили пока не найдены.',
-      'emptyNotifications': 'Пока нет уведомлений.',
-      'loading': 'Загрузка...',
-      'pass': 'Пропустить',
-      'like': 'Лайк',
-      'staleData': 'Показаны кешированные данные, потому что сеть недоступна.',
-      'sessionExpired': 'Сессия истекла. Войдите снова.',
-      'profileUpdated': 'Профиль обновлён.',
+      'password': 'Password',
+      'confirmPassword': 'Confirm password',
+      'noAccount': 'Need an account?',
+      'haveAccount': 'Already have an account?',
+      'feed': 'Feed',
+      'discover': 'Discover',
+      'notifications': 'Notifications',
+      'profile': 'Profile',
+      'retry': 'Retry',
+      'save': 'Save changes',
+      'signOut': 'Sign out',
+      'editProfile': 'Edit profile',
+      'city': 'City',
+      'bio': 'Bio',
+      'searchProfiles': 'Search profiles',
+      'searchHint': 'Name, shelter, kennel...',
+      'emptyFeed': 'No animals available right now.',
+      'emptyProfiles': 'No matching profiles yet.',
+      'emptyNotifications': 'No notifications yet.',
+      'loading': 'Loading...',
+      'pass': 'Pass',
+      'like': 'Like',
+      'staleData': 'Showing cached data because the network is unavailable.',
+      'sessionExpired': 'Session expired. Please sign in again.',
+      'profileUpdated': 'Profile updated.',
+      'createKennelProfile': 'Kennel profile created.',
+      'profileType': 'Profile type',
+      'userProfile': 'User',
+      'shelterProfile': 'Shelter',
+      'kennelProfile': 'Kennel',
+      'publishPet': 'Publish pet',
+      'petName': 'Pet name',
+      'species': 'Species',
+      'breed': 'Breed',
+      'sex': 'Sex',
+      'size': 'Size',
+      'ageMonths': 'Age in months',
+      'vaccinated': 'Vaccinated',
+      'sterilized': 'Sterilized',
+      'publishNow': 'Publish immediately',
+      'animalCreated': 'Pet profile created.',
+      'createPetCta': 'Add pet listing',
+      'createProfileFirst': 'Create or update your profile first.',
     },
   };
 
@@ -122,6 +158,24 @@ class AppLocalizations {
   String get staleData => _text('staleData');
   String get sessionExpired => _text('sessionExpired');
   String get profileUpdated => _text('profileUpdated');
+  String get createKennelProfile => _text('createKennelProfile');
+  String get profileType => _text('profileType');
+  String get userProfile => _text('userProfile');
+  String get shelterProfile => _text('shelterProfile');
+  String get kennelProfile => _text('kennelProfile');
+  String get publishPet => _text('publishPet');
+  String get petName => _text('petName');
+  String get species => _text('species');
+  String get breed => _text('breed');
+  String get sex => _text('sex');
+  String get size => _text('size');
+  String get ageMonths => _text('ageMonths');
+  String get vaccinated => _text('vaccinated');
+  String get sterilized => _text('sterilized');
+  String get publishNow => _text('publishNow');
+  String get animalCreated => _text('animalCreated');
+  String get createPetCta => _text('createPetCta');
+  String get createProfileFirst => _text('createProfileFirst');
 }
 
 class _AppLocalizationsDelegate

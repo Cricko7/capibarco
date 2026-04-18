@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../bootstrap/providers.dart';
 import '../../../core/config/environment.dart';
+import '../../../core/error/app_exception.dart';
 import '../../../core/network/network_providers.dart';
 import '../../../core/network/rest_service_client.dart';
 import '../../auth/presentation/auth_controller.dart';
@@ -65,6 +66,14 @@ final profileControllerProvider =
 
 class ProfileController extends Notifier<ProfileState> {
   ProfileRepositoryImpl get _repository => ref.read(profileRepositoryProvider);
+  String get _authUserId =>
+      ref.read(authControllerProvider).session?.user.id ?? '';
+
+  String get _defaultDisplayName {
+    final email = ref.read(authControllerProvider).session?.user.email ?? '';
+    final localPart = email.split('@').first.trim();
+    return localPart.isEmpty ? 'New profile' : localPart;
+  }
 
   @override
   ProfileState build() => const ProfileState();
@@ -82,6 +91,17 @@ class ProfileController extends Notifier<ProfileState> {
       final profile = await _repository.getProfile(profileId);
       state = state.copyWith(profile: profile, isLoading: false);
     } catch (error) {
+      if (error is AppException && error.isNotFound) {
+        await updateProfile(
+          displayName: _defaultDisplayName,
+          bio: '',
+          city: '',
+          profileType: 'PROFILE_TYPE_USER',
+          infoMessage: null,
+        );
+        state = state.copyWith(isLoading: false);
+        return;
+      }
       state = state.copyWith(isLoading: false, errorMessage: error.toString());
     }
   }
@@ -90,6 +110,8 @@ class ProfileController extends Notifier<ProfileState> {
     required String displayName,
     required String bio,
     required String city,
+    required String profileType,
+    String? infoMessage,
   }) async {
     final profileId = ref
         .read(authControllerProvider.notifier)
@@ -102,14 +124,16 @@ class ProfileController extends Notifier<ProfileState> {
     try {
       final profile = await _repository.updateProfile(
         profileId: profileId,
+        authUserId: _authUserId,
         displayName: displayName,
         bio: bio,
         city: city,
+        profileType: profileType,
       );
       state = state.copyWith(
         profile: profile,
         isSaving: false,
-        infoMessage: 'Profile updated.',
+        infoMessage: infoMessage ?? 'Profile updated.',
       );
     } catch (error) {
       state = state.copyWith(isSaving: false, errorMessage: error.toString());

@@ -49,6 +49,7 @@ class UserProfileDto {
       bio: bio,
       city: city,
       avatarUrl: avatarUrl,
+      typeCode: type,
       typeLabel: type.replaceAll('PROFILE_TYPE_', '').toLowerCase(),
       averageRating: averageRating,
       reviewsCount: reviewsCount,

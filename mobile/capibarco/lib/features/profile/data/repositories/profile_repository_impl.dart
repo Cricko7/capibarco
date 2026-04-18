@@ -23,16 +23,20 @@ class ProfileRepositoryImpl {
 
   Future<UserProfileEntity> updateProfile({
     required String profileId,
+    required String authUserId,
     required String displayName,
     required String bio,
     required String city,
+    required String profileType,
   }) async {
     try {
       final profile = await _remoteDataSource.updateProfile(
         profileId: profileId,
+        authUserId: authUserId,
         displayName: displayName,
         bio: bio,
         city: city,
+        profileType: profileType,
       );
       return profile.toDomain();
     } catch (error) {

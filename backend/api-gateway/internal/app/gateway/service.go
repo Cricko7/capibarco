@@ -186,6 +186,9 @@ func (s *Service) CreateAnimal(ctx context.Context, input CreateAnimalInput) (*a
 	if input.Animal.OwnerProfileId != "" {
 		req.OwnerProfileId = input.Animal.OwnerProfileId
 	}
+	if input.Animal.OwnerType != commonv1.OwnerType_OWNER_TYPE_UNSPECIFIED {
+		req.OwnerType = input.Animal.OwnerType
+	}
 	out, err := s.deps.Animal.CreateAnimal(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("create animal: %w", err)

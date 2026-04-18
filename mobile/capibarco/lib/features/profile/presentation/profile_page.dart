@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../app/localization/app_localizations.dart';
 import '../../../shared/presentation/page_shell.dart';
@@ -133,6 +134,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       label: Text(l10n.editProfile),
                     ),
                     const SizedBox(height: 12),
+                    FilledButton.icon(
+                      onPressed: () => context.push('/profile/animals/new'),
+                      icon: const Icon(Icons.pets_rounded),
+                      label: Text(l10n.createPetCta),
+                    ),
+                    const SizedBox(height: 12),
                     OutlinedButton.icon(
                       onPressed: () =>
                           ref.read(authControllerProvider.notifier).logout(),
@@ -157,6 +164,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     final nameController = TextEditingController(text: profile.displayName);
     final bioController = TextEditingController(text: profile.bio);
     final cityController = TextEditingController(text: profile.city);
+    var profileType = profile.typeCode;
 
     await showModalBottomSheet<void>(
       context: context,
@@ -181,6 +189,35 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 decoration: const InputDecoration(labelText: 'Display name'),
               ),
               const SizedBox(height: 12),
+              StatefulBuilder(
+                builder: (context, setModalState) {
+                  return DropdownButtonFormField<String>(
+                    initialValue: profileType,
+                    decoration: InputDecoration(labelText: l10n.profileType),
+                    items: <DropdownMenuItem<String>>[
+                      DropdownMenuItem(
+                        value: 'PROFILE_TYPE_USER',
+                        child: Text(l10n.userProfile),
+                      ),
+                      DropdownMenuItem(
+                        value: 'PROFILE_TYPE_SHELTER',
+                        child: Text(l10n.shelterProfile),
+                      ),
+                      DropdownMenuItem(
+                        value: 'PROFILE_TYPE_KENNEL',
+                        child: Text(l10n.kennelProfile),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      if (value == null) {
+                        return;
+                      }
+                      setModalState(() => profileType = value);
+                    },
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
               TextField(
                 controller: cityController,
                 decoration: InputDecoration(labelText: l10n.city),
@@ -201,6 +238,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         displayName: nameController.text.trim(),
                         bio: bioController.text.trim(),
                         city: cityController.text.trim(),
+                        profileType: profileType,
+                        infoMessage: profileType == 'PROFILE_TYPE_KENNEL'
+                            ? l10n.createKennelProfile
+                            : l10n.profileUpdated,
                       );
                   if (context.mounted) {
                     Navigator.of(context).pop();

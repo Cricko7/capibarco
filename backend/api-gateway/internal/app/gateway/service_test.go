@@ -90,6 +90,31 @@ func TestServiceCreateGuestSessionReturnsTokenAndScopes(t *testing.T) {
 	require.Equal(t, fixedNow.Add(time.Hour), out.ExpiresAt)
 }
 
+func TestServiceCreateAnimalUsesProvidedOwnerType(t *testing.T) {
+	animalClient := &fakeAnimal{}
+	svc := NewService(Dependencies{
+		Auth:          &fakeAuth{},
+		Animal:        animalClient,
+		GuestSessions: domain.NewGuestSessionCodec([]byte("secret"), time.Hour),
+		Clock:         fixedClock{},
+		Defaults:      Defaults{TenantID: "petmatch", MaxPageSize: 10},
+	})
+	ctx := WithPrincipal(context.Background(), Principal{ActorID: "user-1", TenantID: "tenant-1"})
+
+	_, err := svc.CreateAnimal(ctx, CreateAnimalInput{
+		IdempotencyKey: "idem-animal",
+		Animal: &animalv1.AnimalProfile{
+			OwnerProfileId: "profile-kennel-1",
+			OwnerType:      commonv1.OwnerType_OWNER_TYPE_KENNEL,
+			Name:           "Mila",
+		},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, animalClient.lastCreate)
+	require.Equal(t, commonv1.OwnerType_OWNER_TYPE_KENNEL, animalClient.lastCreate.OwnerType)
+	require.Equal(t, "profile-kennel-1", animalClient.lastCreate.OwnerProfileId)
+}
+
 type fixedClock struct{}
 
 var fixedNow = time.Date(2026, 4, 18, 10, 0, 0, 0, time.UTC)
@@ -133,13 +158,14 @@ func (fakeMatching) RecordSwipe(context.Context, *matchingv1.RecordSwipeRequest)
 	return nil, errors.New("should not be called")
 }
 
-type fakeAnimal struct{}
+type fakeAnimal struct{ lastCreate *animalv1.CreateAnimalRequest }
 
 func (fakeAnimal) GetAnimal(context.Context, string) (*animalv1.AnimalProfile, error) {
 	return nil, nil
 }
-func (fakeAnimal) CreateAnimal(context.Context, *animalv1.CreateAnimalRequest) (*animalv1.AnimalProfile, error) {
-	return nil, nil
+func (f *fakeAnimal) CreateAnimal(_ context.Context, req *animalv1.CreateAnimalRequest) (*animalv1.AnimalProfile, error) {
+	f.lastCreate = req
+	return req.Animal, nil
 }
 func (fakeAnimal) AddPhoto(context.Context, string, *commonv1.Photo, string) (*animalv1.AnimalProfile, error) {
 	return nil, nil
