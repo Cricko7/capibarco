@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	commonv1 "github.com/petmatch/petmatch/gen/go/petmatch/common/v1"
 	userv1 "github.com/petmatch/petmatch/gen/go/petmatch/user/v1"
 )
 
@@ -72,6 +73,32 @@ func TestDecodeCreateDonationIntentBodyAcceptsStringTargetType(t *testing.T) {
 	}
 	if input.Provider != "mock" {
 		t.Fatalf("provider decoded as %q, want mock", input.Provider)
+	}
+}
+
+func TestUserProfileJSONUsesSnakeCaseContract(t *testing.T) {
+	payload := userProfileJSON(&userv1.UserProfile{
+		ProfileId:   "profile-1",
+		AuthUserId:  "auth-1",
+		ProfileType: userv1.ProfileType_PROFILE_TYPE_KENNEL,
+		DisplayName: "Alice",
+		Bio:         "Loves dogs",
+		Address:     &commonv1.Address{City: "Moscow"},
+		Visibility:  commonv1.Visibility_VISIBILITY_PUBLIC,
+	})
+
+	if got := payload["display_name"]; got != "Alice" {
+		t.Fatalf("display_name = %v, want Alice", got)
+	}
+	if got := payload["profile_type"]; got != "PROFILE_TYPE_KENNEL" {
+		t.Fatalf("profile_type = %v, want PROFILE_TYPE_KENNEL", got)
+	}
+	address, ok := payload["address"].(gin.H)
+	if !ok {
+		t.Fatalf("address payload type = %T, want gin.H", payload["address"])
+	}
+	if got := address["city"]; got != "Moscow" {
+		t.Fatalf("address.city = %v, want Moscow", got)
 	}
 }
 

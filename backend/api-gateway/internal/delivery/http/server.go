@@ -355,7 +355,7 @@ func (s *Server) getProfile(c *gin.Context) {
 		problem.Abort(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, out)
+	writeUserProfileEnvelope(c, http.StatusOK, out.Profile)
 }
 
 func (s *Server) searchProfiles(c *gin.Context) {
@@ -398,7 +398,7 @@ func (s *Server) searchProfiles(c *gin.Context) {
 		problem.Abort(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, out)
+	writeSearchProfilesResponse(c, http.StatusOK, out)
 }
 
 func (s *Server) updateProfile(c *gin.Context) {
@@ -416,7 +416,7 @@ func (s *Server) updateProfile(c *gin.Context) {
 		problem.Abort(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, out)
+	writeUserProfileEnvelope(c, http.StatusOK, out.Profile)
 }
 
 func (s *Server) createReview(c *gin.Context) {
@@ -439,7 +439,7 @@ func (s *Server) createReview(c *gin.Context) {
 		problem.Abort(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, out)
+	writeReviewEnvelope(c, http.StatusCreated, out.Review)
 }
 
 func (s *Server) updateReview(c *gin.Context) {
@@ -460,7 +460,7 @@ func (s *Server) updateReview(c *gin.Context) {
 		problem.Abort(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, out)
+	writeReviewEnvelope(c, http.StatusOK, out.Review)
 }
 
 func (s *Server) listReviews(c *gin.Context) {
@@ -473,7 +473,7 @@ func (s *Server) listReviews(c *gin.Context) {
 		problem.Abort(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, out)
+	writeListReviewsResponse(c, http.StatusOK, out)
 }
 
 func (s *Server) getReputationSummary(c *gin.Context) {
@@ -482,7 +482,7 @@ func (s *Server) getReputationSummary(c *gin.Context) {
 		problem.Abort(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, out)
+	writeReputationEnvelope(c, http.StatusOK, out.Reputation)
 }
 
 func (s *Server) listConversations(c *gin.Context) {
@@ -801,6 +801,149 @@ func writeProto(c *gin.Context, status int, msg proto.Message) {
 		return
 	}
 	c.Data(status, "application/json", body)
+}
+
+func writeUserProfileEnvelope(c *gin.Context, status int, profile *userv1.UserProfile) {
+	c.JSON(status, gin.H{"profile": userProfileJSON(profile)})
+}
+
+func writeSearchProfilesResponse(c *gin.Context, status int, out *userv1.SearchProfilesResponse) {
+	items := make([]gin.H, 0, len(out.Profiles))
+	for _, profile := range out.Profiles {
+		items = append(items, userProfileJSON(profile))
+	}
+	c.JSON(status, gin.H{
+		"profiles": items,
+		"page":     pageResponseJSON(out.Page),
+	})
+}
+
+func writeReviewEnvelope(c *gin.Context, status int, review *userv1.Review) {
+	c.JSON(status, gin.H{"review": reviewJSON(review)})
+}
+
+func writeListReviewsResponse(c *gin.Context, status int, out *userv1.ListReviewsResponse) {
+	items := make([]gin.H, 0, len(out.Reviews))
+	for _, review := range out.Reviews {
+		items = append(items, reviewJSON(review))
+	}
+	c.JSON(status, gin.H{
+		"reviews": items,
+		"page":    pageResponseJSON(out.Page),
+	})
+}
+
+func writeReputationEnvelope(c *gin.Context, status int, reputation *userv1.ReputationSummary) {
+	c.JSON(status, gin.H{"reputation": reputationJSON(reputation)})
+}
+
+func userProfileJSON(profile *userv1.UserProfile) gin.H {
+	if profile == nil {
+		return gin.H{}
+	}
+	return gin.H{
+		"profile_id":   profile.GetProfileId(),
+		"auth_user_id": profile.GetAuthUserId(),
+		"profile_type": profileTypeString(profile.GetProfileType()),
+		"display_name": profile.GetDisplayName(),
+		"bio":          profile.GetBio(),
+		"avatar_url":   profile.GetAvatarUrl(),
+		"address":      addressJSON(profile.GetAddress()),
+		"visibility":   profile.GetVisibility().String(),
+		"reputation":   reputationJSON(profile.GetReputation()),
+		"audit":        auditJSON(profile.GetAudit()),
+	}
+}
+
+func reviewJSON(review *userv1.Review) gin.H {
+	if review == nil {
+		return gin.H{}
+	}
+	body := gin.H{
+		"review_id":         review.GetReviewId(),
+		"target_profile_id": review.GetTargetProfileId(),
+		"author_profile_id": review.GetAuthorProfileId(),
+		"rating":            review.GetRating(),
+		"text":              review.GetText(),
+		"visibility":        review.GetVisibility().String(),
+		"audit":             auditJSON(review.Audit),
+	}
+	if review.MatchId != nil {
+		body["match_id"] = *review.MatchId
+	}
+	return body
+}
+
+func reputationJSON(reputation *userv1.ReputationSummary) gin.H {
+	if reputation == nil {
+		return gin.H{}
+	}
+	payload := gin.H{
+		"profile_id":                reputation.GetProfileId(),
+		"average_rating":            reputation.AverageRating,
+		"reviews_count":             reputation.ReviewsCount,
+		"completed_adoptions_count": reputation.CompletedAdoptionsCount,
+	}
+	if reputation.UpdatedAt != nil {
+		payload["updated_at"] = reputation.UpdatedAt.AsTime().UTC().Format(time.RFC3339)
+	}
+	return payload
+}
+
+func addressJSON(address *commonv1.Address) gin.H {
+	if address == nil {
+		return gin.H{}
+	}
+	payload := gin.H{
+		"country_code": address.GetCountryCode(),
+		"region":       address.GetRegion(),
+		"city":         address.GetCity(),
+		"district":     address.GetDistrict(),
+	}
+	if address.GetLocation() != nil {
+		payload["location"] = gin.H{
+			"latitude":  address.GetLocation().GetLatitude(),
+			"longitude": address.GetLocation().GetLongitude(),
+			"geohash":   address.GetLocation().GetGeohash(),
+		}
+	}
+	return payload
+}
+
+func auditJSON(audit *commonv1.AuditMetadata) gin.H {
+	if audit == nil {
+		return gin.H{}
+	}
+	payload := gin.H{}
+	if audit.GetCreatedAt() != nil {
+		payload["created_at"] = audit.GetCreatedAt().AsTime().UTC().Format(time.RFC3339)
+	}
+	if audit.GetUpdatedAt() != nil {
+		payload["updated_at"] = audit.GetUpdatedAt().AsTime().UTC().Format(time.RFC3339)
+	}
+	return payload
+}
+
+func pageResponseJSON(page *commonv1.PageResponse) gin.H {
+	if page == nil {
+		return gin.H{}
+	}
+	return gin.H{"next_page_token": page.GetNextPageToken()}
+}
+
+func profileTypeString(value userv1.ProfileType) string {
+	switch value {
+	case userv1.ProfileType_PROFILE_TYPE_UNSPECIFIED:
+		return "PROFILE_TYPE_UNSPECIFIED"
+	case userv1.ProfileType_PROFILE_TYPE_SHELTER:
+		return "PROFILE_TYPE_SHELTER"
+	case userv1.ProfileType_PROFILE_TYPE_KENNEL:
+		return "PROFILE_TYPE_KENNEL"
+	case userv1.ProfileType_PROFILE_TYPE_USER:
+		fallthrough
+	default:
+		return "PROFILE_TYPE_USER"
+	}
 }
 
 func queryInt32(c *gin.Context, key string) int32 {
