@@ -64,4 +64,9 @@ class AnimalsApiClient {
     );
     return AnimalListingDto.fromJson(response);
   }
+
+  Future<AnimalListingDto> publishAnimal({required String animalId}) async {
+    final response = await _client.postJson('/animals/$animalId/publish');
+    return AnimalListingDto.fromJson(response);
+  }
 }

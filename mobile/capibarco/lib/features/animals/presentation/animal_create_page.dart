@@ -57,7 +57,8 @@ class _AnimalCreatePageState extends ConsumerState<AnimalCreatePage> {
           children: <Widget>[
             SectionHeader(
               title: l10n.publishPet,
-              subtitle: 'Create a public animal card for your profile.',
+              subtitle:
+                  'Create a pet card, save it as draft, or publish when ready.',
             ),
             const SizedBox(height: 16),
             SoftCard(
@@ -243,54 +244,34 @@ class _AnimalCreatePageState extends ConsumerState<AnimalCreatePage> {
                       ),
                     ],
                     const SizedBox(height: 16),
-                    FilledButton(
-                      onPressed: state.isSubmitting
-                          ? null
-                          : () async {
-                              if (!_formKey.currentState!.validate()) {
-                                return;
-                              }
-                              final success = await ref
-                                  .read(animalCreateControllerProvider.notifier)
-                                  .createAnimal(
-                                    name: _nameController.text.trim(),
-                                    species: _species,
-                                    breed: _breedController.text.trim(),
-                                    sex: _sex,
-                                    size: _size,
-                                    ageMonths:
-                                        int.tryParse(
-                                          _ageController.text.trim(),
-                                        ) ??
-                                        0,
-                                    description: _descriptionController.text
-                                        .trim(),
-                                    traits: _traitsController.text
-                                        .split(',')
-                                        .map((item) => item.trim())
-                                        .where((item) => item.isNotEmpty)
-                                        .toList(),
-                                    vaccinated: _vaccinated,
-                                    sterilized: _sterilized,
-                                    photo: _selectedPhoto,
-                                    photoBytes: _selectedPhotoBytes,
-                                  );
-                              if (success && context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text(l10n.animalCreated)),
-                                );
-                                context.pop();
-                              }
-                            },
-                      child: state.isSubmitting
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.4,
-                              ),
-                            )
-                          : Text(l10n.publishPet),
+                    Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: state.isSubmitting
+                                ? null
+                                : () => _submit(publish: false),
+                            child: Text(l10n.saveDraft),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: FilledButton(
+                            onPressed: state.isSubmitting
+                                ? null
+                                : () => _submit(publish: true),
+                            child: state.isSubmitting
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.4,
+                                    ),
+                                  )
+                                : Text(l10n.publishPet),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -318,5 +299,62 @@ class _AnimalCreatePageState extends ConsumerState<AnimalCreatePage> {
       _selectedPhoto = photo;
       _selectedPhotoBytes = photoBytes;
     });
+  }
+
+  Future<void> _submit({required bool publish}) async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    final l10n = AppLocalizations.of(context);
+    final controller = ref.read(animalCreateControllerProvider.notifier);
+    final ageMonths = int.tryParse(_ageController.text.trim()) ?? 0;
+    final traits = _traitsController.text
+        .split(',')
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
+
+    final success = publish
+        ? await controller.publishAnimal(
+            name: _nameController.text.trim(),
+            species: _species,
+            breed: _breedController.text.trim(),
+            sex: _sex,
+            size: _size,
+            ageMonths: ageMonths,
+            description: _descriptionController.text.trim(),
+            traits: traits,
+            vaccinated: _vaccinated,
+            sterilized: _sterilized,
+            photo: _selectedPhoto,
+            photoBytes: _selectedPhotoBytes,
+          )
+        : await controller.saveDraft(
+            name: _nameController.text.trim(),
+            species: _species,
+            breed: _breedController.text.trim(),
+            sex: _sex,
+            size: _size,
+            ageMonths: ageMonths,
+            description: _descriptionController.text.trim(),
+            traits: traits,
+            vaccinated: _vaccinated,
+            sterilized: _sterilized,
+            photo: _selectedPhoto,
+            photoBytes: _selectedPhotoBytes,
+          );
+
+    if (!success || !mounted) {
+      return;
+    }
+
+    final message =
+        ref.read(animalCreateControllerProvider).successMessage ??
+        (publish ? l10n.petPublished : l10n.draftSaved);
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+    context.pop();
   }
 }

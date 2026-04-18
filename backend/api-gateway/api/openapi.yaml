@@ -135,6 +135,14 @@ paths:
                 sort_order: { type: integer }
       responses:
         "201": { description: Photo stored and metadata registered }
+  /v1/animals/{animal_id}/publish:
+    post:
+      tags: [Animals]
+      operationId: publishAnimal
+      parameters:
+        - { name: animal_id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Animal profile published }
   /v1/animals/{animal_id}/swipe:
     post:
       tags: [Matching]

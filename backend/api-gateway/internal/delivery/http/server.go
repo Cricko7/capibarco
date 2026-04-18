@@ -106,6 +106,7 @@ func New(cfg config.Config, app *gateway.Service, chat chatStreamer, notificatio
 	protected.GET("/v1/feed", s.getFeed)
 	protected.GET("/v1/animals/:animal_id", s.getAnimal)
 	protected.POST("/v1/animals", s.createAnimal)
+	protected.POST("/v1/animals/:animal_id/publish", s.publishAnimal)
 	protected.POST("/v1/animals/:animal_id/photos", s.uploadAnimalPhoto)
 	protected.POST("/v1/animals/:animal_id", s.swipeAnimalColon)
 	protected.POST("/v1/animals/:animal_id/swipe", s.swipeAnimal)
@@ -269,6 +270,15 @@ func (s *Server) createAnimal(c *gin.Context) {
 		return
 	}
 	writeProto(c, http.StatusCreated, &animalv1.CreateAnimalResponse{Animal: out})
+}
+
+func (s *Server) publishAnimal(c *gin.Context) {
+	out, err := s.app.PublishAnimal(c.Request.Context(), c.Param("animal_id"))
+	if err != nil {
+		problem.Abort(c, err)
+		return
+	}
+	writeProto(c, http.StatusOK, &animalv1.PublishAnimalResponse{Animal: out})
 }
 
 func (s *Server) uploadAnimalPhoto(c *gin.Context) {

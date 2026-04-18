@@ -164,6 +164,23 @@ func TestServiceCreateConversationUsesCurrentPrincipal(t *testing.T) {
 	require.Empty(t, chatClient.lastCreateConversation.AnimalId)
 }
 
+func TestServicePublishAnimalUsesRequestedID(t *testing.T) {
+	animalClient := &fakeAnimal{}
+	svc := NewService(Dependencies{
+		Auth:          &fakeAuth{},
+		Animal:        animalClient,
+		GuestSessions: domain.NewGuestSessionCodec([]byte("secret"), time.Hour),
+		Clock:         fixedClock{},
+		Defaults:      Defaults{TenantID: "petmatch", MaxPageSize: 10},
+	})
+	ctx := WithPrincipal(context.Background(), Principal{ActorID: "profile-1", TenantID: "tenant-1"})
+
+	animal, err := svc.PublishAnimal(ctx, "animal-1")
+	require.NoError(t, err)
+	require.NotNil(t, animal)
+	require.Equal(t, "animal-1", animalClient.lastPublishAnimalID)
+}
+
 func TestServiceListOwnerAnimalsUsesRequestedProfile(t *testing.T) {
 	animalClient := &fakeAnimal{}
 	svc := NewService(Dependencies{

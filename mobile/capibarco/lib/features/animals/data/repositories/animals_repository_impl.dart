@@ -14,7 +14,7 @@ class AnimalsRepositoryImpl {
   final AnimalsRemoteDataSource _remoteDataSource;
   final ErrorMapper _errorMapper;
 
-  Future<AnimalListingEntity> createAnimal({
+  Future<AnimalListingEntity> createAnimalDraft({
     required String ownerProfileId,
     required String ownerType,
     required String name,
@@ -43,10 +43,19 @@ class AnimalsRepositoryImpl {
         traits: traits,
         vaccinated: vaccinated,
         sterilized: sterilized,
-        status: 'ANIMAL_STATUS_AVAILABLE',
-        visibility: 'VISIBILITY_PUBLIC',
+        status: 'ANIMAL_STATUS_DRAFT',
+        visibility: 'VISIBILITY_PRIVATE',
         city: city,
       );
+      return animal.toDomain();
+    } catch (error) {
+      throw _errorMapper.map(error);
+    }
+  }
+
+  Future<AnimalListingEntity> publishAnimal({required String animalId}) async {
+    try {
+      final animal = await _remoteDataSource.publishAnimal(animalId: animalId);
       return animal.toDomain();
     } catch (error) {
       throw _errorMapper.map(error);

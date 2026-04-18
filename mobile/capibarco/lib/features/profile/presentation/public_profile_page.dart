@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -459,12 +459,12 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (sheetContext) => StatefulBuilder(
-        builder: (context, setModalState) => Padding(
+        builder: (modalContext, setModalState) => Padding(
           padding: EdgeInsets.fromLTRB(
             20,
             20,
             20,
-            MediaQuery.of(context).viewInsets.bottom + 20,
+            MediaQuery.of(modalContext).viewInsets.bottom + 20,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -473,7 +473,7 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
               Text(
                 'Leave comment',
                 style: Theme.of(
-                  context,
+                  modalContext,
                 ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 14),
@@ -531,8 +531,10 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
                                   Navigator.of(sheetContext).pop();
                                 }
                               } catch (error) {
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
+                                if (modalContext.mounted) {
+                                  ScaffoldMessenger.of(
+                                    modalContext,
+                                  ).showSnackBar(
                                     SnackBar(content: Text(error.toString())),
                                   );
                                 }

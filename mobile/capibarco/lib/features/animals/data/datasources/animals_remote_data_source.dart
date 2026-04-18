@@ -51,4 +51,7 @@ class AnimalsRemoteDataSource {
     photoBytes: photoBytes,
     fileName: fileName,
   );
+
+  Future<AnimalListingDto> publishAnimal({required String animalId}) =>
+      _apiClient.publishAnimal(animalId: animalId);
 }

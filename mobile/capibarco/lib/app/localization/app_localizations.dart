@@ -67,6 +67,10 @@ class AppLocalizations {
       'sterilized': 'Sterilized',
       'publishNow': 'Publish immediately',
       'animalCreated': 'Pet profile created.',
+      'saveDraft': 'Save draft',
+      'draftSaved': 'Pet draft saved.',
+      'petPublished': 'Pet profile published.',
+      'photoRequiredForPublish': 'Add at least one photo before publishing.',
       'createPetCta': 'Add pet listing',
       'createProfileFirst': 'Create or update your profile first.',
       'petPhoto': 'Pet photo',
@@ -145,6 +149,10 @@ class AppLocalizations {
       'sterilized': 'Sterilized',
       'publishNow': 'Publish immediately',
       'animalCreated': 'Pet profile created.',
+      'saveDraft': 'Save draft',
+      'draftSaved': 'Pet draft saved.',
+      'petPublished': 'Pet profile published.',
+      'photoRequiredForPublish': 'Add at least one photo before publishing.',
       'createPetCta': 'Add pet listing',
       'createProfileFirst': 'Create or update your profile first.',
       'petPhoto': 'Pet photo',
@@ -228,6 +236,10 @@ class AppLocalizations {
   String get sterilized => _text('sterilized');
   String get publishNow => _text('publishNow');
   String get animalCreated => _text('animalCreated');
+  String get saveDraft => _text('saveDraft');
+  String get draftSaved => _text('draftSaved');
+  String get petPublished => _text('petPublished');
+  String get photoRequiredForPublish => _text('photoRequiredForPublish');
   String get createPetCta => _text('createPetCta');
   String get createProfileFirst => _text('createProfileFirst');
   String get petPhoto => _text('petPhoto');

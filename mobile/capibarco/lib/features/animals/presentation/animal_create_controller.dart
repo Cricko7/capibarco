@@ -67,7 +67,7 @@ class AnimalCreateController extends Notifier<AnimalCreateState> {
   @override
   AnimalCreateState build() => const AnimalCreateState();
 
-  Future<bool> createAnimal({
+  Future<bool> saveDraft({
     required String name,
     required String species,
     required String breed,
@@ -80,6 +80,74 @@ class AnimalCreateController extends Notifier<AnimalCreateState> {
     required bool sterilized,
     XFile? photo,
     Uint8List? photoBytes,
+  }) => _submitAnimal(
+    name: name,
+    species: species,
+    breed: breed,
+    sex: sex,
+    size: size,
+    ageMonths: ageMonths,
+    description: description,
+    traits: traits,
+    vaccinated: vaccinated,
+    sterilized: sterilized,
+    photo: photo,
+    photoBytes: photoBytes,
+    publish: false,
+  );
+
+  Future<bool> publishAnimal({
+    required String name,
+    required String species,
+    required String breed,
+    required String sex,
+    required String size,
+    required int ageMonths,
+    required String description,
+    required List<String> traits,
+    required bool vaccinated,
+    required bool sterilized,
+    XFile? photo,
+    Uint8List? photoBytes,
+  }) {
+    if (photo == null) {
+      state = state.copyWith(
+        errorMessage: 'Add at least one photo before publishing.',
+        clearSuccess: true,
+      );
+      return Future<bool>.value(false);
+    }
+    return _submitAnimal(
+      name: name,
+      species: species,
+      breed: breed,
+      sex: sex,
+      size: size,
+      ageMonths: ageMonths,
+      description: description,
+      traits: traits,
+      vaccinated: vaccinated,
+      sterilized: sterilized,
+      photo: photo,
+      photoBytes: photoBytes,
+      publish: true,
+    );
+  }
+
+  Future<bool> _submitAnimal({
+    required String name,
+    required String species,
+    required String breed,
+    required String sex,
+    required String size,
+    required int ageMonths,
+    required String description,
+    required List<String> traits,
+    required bool vaccinated,
+    required bool sterilized,
+    XFile? photo,
+    Uint8List? photoBytes,
+    required bool publish,
   }) async {
     final profile = ref.read(profileControllerProvider).profile;
     if (profile == null) {
@@ -96,7 +164,7 @@ class AnimalCreateController extends Notifier<AnimalCreateState> {
     );
 
     try {
-      final animal = await _repository.createAnimal(
+      final animal = await _repository.createAnimalDraft(
         ownerProfileId: profile.id,
         ownerType: _mapOwnerType(profile.typeCode),
         name: name,
@@ -119,11 +187,12 @@ class AnimalCreateController extends Notifier<AnimalCreateState> {
           fileName: photo.name,
         );
       }
+      if (publish) {
+        await _repository.publishAnimal(animalId: animal.id);
+      }
       state = state.copyWith(
         isSubmitting: false,
-        successMessage: photo == null
-            ? 'Pet profile created.'
-            : 'Pet profile created with photo.',
+        successMessage: publish ? 'Pet profile published.' : 'Pet draft saved.',
       );
       return true;
     } catch (error) {

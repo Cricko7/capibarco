@@ -202,6 +202,21 @@ func (s *Service) CreateAnimal(ctx context.Context, input CreateAnimalInput) (*a
 	return out, nil
 }
 
+// PublishAnimal publishes an existing draft animal profile.
+func (s *Service) PublishAnimal(ctx context.Context, animalID string) (*animalv1.AnimalProfile, error) {
+	if _, err := requiredPrincipal(ctx); err != nil {
+		return nil, err
+	}
+	if animalID == "" {
+		return nil, fmt.Errorf("%w: animal_id is required", ErrInvalidInput)
+	}
+	animal, err := s.deps.Animal.PublishAnimal(ctx, animalID)
+	if err != nil {
+		return nil, fmt.Errorf("publish animal: %w", err)
+	}
+	return animal, nil
+}
+
 func shouldPublishCreatedAnimal(animal *animalv1.AnimalProfile) bool {
 	if animal == nil {
 		return false
