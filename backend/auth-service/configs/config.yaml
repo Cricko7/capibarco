@@ -1,0 +1,21 @@
+grpc_addr: ":50051"
+http_addr: ":8080"
+database_url: "postgres://auth:auth@localhost:5432/auth?sslmode=disable"
+jwt_issuer: "authsvc"
+jwt_audience: "internal-services"
+jwt_key_id: "local-dev"
+access_ttl: "15m"
+refresh_ttl: "720h"
+reset_ttl: "15m"
+argon2_memory_kib: 131072
+argon2_iterations: 3
+argon2_parallelism: 4
+kafka_enabled: false
+kafka_brokers:
+  - "localhost:9092"
+kafka_client_id: "auth-service"
+kafka_allow_auto_topic_creation: false
+rate_limit_rps: 20
+rate_limit_burst: 60
+mail_retry_attempts: 3
+mail_retry_delay: "200ms"

@@ -10,6 +10,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"golang.org/x/time/rate"
 )
 
 // Metrics exports Prometheus counters for auth operations.
@@ -45,12 +46,22 @@ type Server struct {
 }
 
 // NewServer creates an HTTP server.
-func NewServer(addr string, db *sql.DB, logger *slog.Logger, reg *prometheus.Registry) *Server {
+func NewServer(addr string, db *sql.DB, logger *slog.Logger, reg *prometheus.Registry, limiter *rate.Limiter) *Server {
 	mux := stdhttp.NewServeMux()
 	s := &Server{db: db, logger: logger}
 	mux.HandleFunc("/healthz", s.healthz)
+	mux.HandleFunc("/readyz", s.readyz)
 	mux.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
-	s.server = &stdhttp.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 5 * time.Second}
+
+	handler := chain(mux,
+		recoverMiddleware(logger),
+		requestIDMiddleware,
+		securityHeadersMiddleware,
+		rateLimitMiddleware(limiter),
+		loggingMiddleware(logger),
+	)
+
+	s.server = &stdhttp.Server{Addr: addr, Handler: handler, ReadHeaderTimeout: 5 * time.Second}
 	return s
 }
 
@@ -68,17 +79,24 @@ func (s *Server) Shutdown(ctx context.Context) error {
 }
 
 func (s *Server) healthz(w stdhttp.ResponseWriter, r *stdhttp.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+}
+
+func (s *Server) readyz(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 	defer cancel()
-	status := "ok"
+	status := "ready"
+	code := stdhttp.StatusOK
 	if s.db != nil {
 		if err := s.db.PingContext(ctx); err != nil {
-			status = "degraded"
-			w.WriteHeader(stdhttp.StatusServiceUnavailable)
+			status = "not_ready"
+			code = stdhttp.StatusServiceUnavailable
 		}
 	}
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
 	if err := json.NewEncoder(w).Encode(map[string]string{"status": status}); err != nil {
-		s.logger.ErrorContext(r.Context(), "write health response", slog.Any("error", err))
+		s.logger.ErrorContext(r.Context(), "write ready response", slog.Any("error", err))
 	}
 }

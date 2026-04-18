@@ -15,7 +15,7 @@ Production-oriented multi-tenant Auth microservice on Go 1.25+.
 - JSON structured logs through `log/slog`.
 - Audit log persistence for sensitive operations.
 - Prometheus metrics on `/metrics`.
-- HTTP health check on `/healthz`.
+- HTTP health and readiness checks on `/healthz` and `/readyz`.
 - gRPC health checking.
 - Kafka publishing for auth domain events.
 - Graceful shutdown on `SIGINT` and `SIGTERM`.
@@ -46,7 +46,7 @@ migrations                   goose-compatible SQL migrations
 
 ## Configuration
 
-All configuration is read from environment variables.
+Configuration is loaded with Viper from `configs/config.yaml` + environment variables (env overrides file).
 
 | Variable | Default | Description |
 | --- | --- | --- |
