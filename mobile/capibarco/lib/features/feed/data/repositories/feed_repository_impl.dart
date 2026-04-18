@@ -54,15 +54,16 @@ class FeedRepositoryImpl {
       );
       return remote.toDomain();
     } catch (error) {
+      final mappedError = _errorMapper.map(error);
       final cachedRaw = _cacheStore.read(cacheKey);
-      if (cachedRaw != null) {
+      if (cachedRaw != null && mappedError.isRetryable) {
         final cached = FeedPageDto.fromJson(
           jsonDecode(cachedRaw) as Map<String, dynamic>,
           isStale: true,
         );
         return cached.toDomain();
       }
-      throw _errorMapper.map(error);
+      throw mappedError;
     }
   }
 
