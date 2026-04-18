@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../app/localization/app_localizations.dart';
 import '../../../shared/presentation/page_shell.dart';
@@ -111,9 +110,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           : Text(l10n.signIn),
                     ),
                     const SizedBox(height: 12),
-                    TextButton(
-                      onPressed: () => context.go('/auth/register'),
-                      child: Text('${l10n.noAccount} ${l10n.createAccount}'),
+                    Text(
+                      'Registration is temporarily disabled in the mobile app.',
+                      style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
                 ),
