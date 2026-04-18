@@ -24,6 +24,7 @@ type Clock interface {
 type AuthClient interface {
 	Register(context.Context, RegisterInput) (*AuthResponse, error)
 	Login(context.Context, LoginInput) (*AuthResponse, error)
+	Refresh(context.Context, RefreshInput) (*AuthResponse, error)
 	Validate(context.Context, string) (Principal, error)
 	Authorize(context.Context, string, string) (Principal, bool, error)
 }

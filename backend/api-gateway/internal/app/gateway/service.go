@@ -91,6 +91,18 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (*AuthResponse, e
 	return out, nil
 }
 
+// Refresh rotates a refresh token through auth-service.
+func (s *Service) Refresh(ctx context.Context, input RefreshInput) (*AuthResponse, error) {
+	if input.RefreshToken == "" {
+		return nil, fmt.Errorf("%w: refresh_token is required", ErrInvalidInput)
+	}
+	out, err := s.deps.Auth.Refresh(ctx, input)
+	if err != nil {
+		return nil, fmt.Errorf("refresh via auth-service: %w", err)
+	}
+	return out, nil
+}
+
 // ValidateBearer validates a JWT through auth-service.
 func (s *Service) ValidateBearer(ctx context.Context, token string) (Principal, error) {
 	if token == "" {

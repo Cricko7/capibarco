@@ -19,6 +19,7 @@ Public endpoints:
 - `POST /v1/auth/guest-sessions`
 - `POST /v1/auth/register`
 - `POST /v1/auth/login`
+- `POST /v1/auth/refresh`
 
 All other endpoints require one of:
 
@@ -56,6 +57,7 @@ Errors are returned as problem JSON:
 | `POST` | `/v1/auth/guest-sessions` | no | Create a guest session token. |
 | `POST` | `/v1/auth/register` | no | Register user and return auth tokens. |
 | `POST` | `/v1/auth/login` | no | Authenticate user and return auth tokens. |
+| `POST` | `/v1/auth/refresh` | no | Rotate refresh token and return new auth tokens. |
 | `GET` | `/v1/feed` | yes | Get feed cards. |
 | `GET` | `/v1/animals/{animal_id}` | yes | Get animal profile. |
 | `POST` | `/v1/animals` | yes | Create animal profile. |
@@ -168,6 +170,20 @@ Response `201`:
 ### POST /v1/auth/login
 
 Authenticates a user through auth-service. Response `200` has the same token shape as register. Invalid credentials return `401`.
+
+### POST /v1/auth/refresh
+
+Rotates a refresh token through auth-service.
+
+Request:
+
+```json
+{
+  "refresh_token": "<refresh-token>"
+}
+```
+
+Response `200` has the same token shape as register/login. Reused or invalid refresh tokens return `401`.
 
 ## Feed
 

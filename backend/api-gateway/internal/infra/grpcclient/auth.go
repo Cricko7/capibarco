@@ -62,6 +62,20 @@ func (c *AuthClient) Login(ctx context.Context, input gateway.LoginInput) (*gate
 	})
 }
 
+// Refresh rotates a refresh token through auth-service.
+func (c *AuthClient) Refresh(ctx context.Context, input gateway.RefreshInput) (*gateway.AuthResponse, error) {
+	req := refreshTokenRequest{RefreshToken: input.RefreshToken}
+	return resilience.Do(ctx, c.res, func(ctx context.Context) (*gateway.AuthResponse, error) {
+		ctx, cancel := context.WithTimeout(ctx, c.timeout)
+		defer cancel()
+		var out authResponse
+		if err := c.conn.Invoke(ctx, "/auth.v1.AuthService/RefreshToken", &req, &out, grpc.ForceCodec(jsonCodec{})); err != nil {
+			return nil, err
+		}
+		return out.toGateway(), nil
+	})
+}
+
 // Validate validates a bearer token through auth-service.
 func (c *AuthClient) Validate(ctx context.Context, token string) (gateway.Principal, error) {
 	req := validateTokenRequest{AccessToken: token}
@@ -114,6 +128,10 @@ type registerRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 	IP       string `json:"ip"`
+}
+
+type refreshTokenRequest struct {
+	RefreshToken string `json:"refresh_token"`
 }
 
 type validateTokenRequest struct {

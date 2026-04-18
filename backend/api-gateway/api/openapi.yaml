@@ -56,6 +56,19 @@ paths:
       responses:
         "200": { description: Auth tokens }
         "401": { $ref: "#/components/responses/Problem" }
+  /v1/auth/refresh:
+    post:
+      tags: [Auth]
+      security: []
+      operationId: refresh
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RefreshTokenRequest" }
+      responses:
+        "200": { description: Refreshed auth tokens }
+        "401": { $ref: "#/components/responses/Problem" }
   /v1/auth/register:
     post:
       tags: [Auth]
@@ -402,6 +415,11 @@ components:
         email: { type: string, format: email }
         password: { type: string, format: password }
         locale: { type: string }
+    RefreshTokenRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token: { type: string }
     SwipeAnimalRequest:
       type: object
       required: [owner_profile_id, direction]

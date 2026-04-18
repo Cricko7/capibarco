@@ -106,6 +106,10 @@ func (fakeAuth) Login(context.Context, LoginInput) (*AuthResponse, error) {
 	return &AuthResponse{AccessToken: "access", RefreshToken: "refresh", ExpiresAt: fixedNow.Add(time.Hour).Format(time.RFC3339)}, nil
 }
 
+func (fakeAuth) Refresh(context.Context, RefreshInput) (*AuthResponse, error) {
+	return &AuthResponse{AccessToken: "access", RefreshToken: "refresh-2", ExpiresAt: fixedNow.Add(time.Hour).Format(time.RFC3339)}, nil
+}
+
 func (fakeAuth) Validate(context.Context, string) (Principal, error) {
 	return Principal{ActorID: "user-1", TenantID: "tenant-1"}, nil
 }

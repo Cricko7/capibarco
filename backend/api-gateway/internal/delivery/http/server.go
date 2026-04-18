@@ -99,6 +99,7 @@ func New(cfg config.Config, app *gateway.Service, chat chatStreamer, notificatio
 	router.POST("/v1/auth/guest-sessions", s.createGuestSession)
 	router.POST("/v1/auth/register", s.register)
 	router.POST("/v1/auth/login", s.login)
+	router.POST("/v1/auth/refresh", s.refresh)
 
 	protected := router.Group("")
 	protected.Use(s.auth(), s.rateLimit())
@@ -209,6 +210,21 @@ func (s *Server) login(c *gin.Context) {
 	input.IP = c.ClientIP()
 	input.TenantID = s.cfg.Auth.TenantID
 	out, err := s.app.Login(c.Request.Context(), input)
+	if err != nil {
+		s.publishRejected(c, http.StatusUnauthorized, err.Error())
+		problem.Abort(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, out)
+}
+
+func (s *Server) refresh(c *gin.Context) {
+	var input gateway.RefreshInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		problem.Abort(c, fmt.Errorf("%w: %v", gateway.ErrInvalidInput, err))
+		return
+	}
+	out, err := s.app.Refresh(c.Request.Context(), input)
 	if err != nil {
 		s.publishRejected(c, http.StatusUnauthorized, err.Error())
 		problem.Abort(c, err)

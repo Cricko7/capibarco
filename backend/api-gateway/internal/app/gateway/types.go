@@ -50,6 +50,11 @@ type LoginInput struct {
 	TenantID string `json:"-"`
 }
 
+// RefreshInput rotates a refresh token and issues a new auth session.
+type RefreshInput struct {
+	RefreshToken string `json:"refresh_token" validate:"required"`
+}
+
 // AuthResponse mirrors auth-service response shape.
 type AuthResponse struct {
 	User         *AuthUser `json:"user,omitempty"`
