@@ -1,0 +1,6 @@
+.git
+.gocache
+.gopath
+tmp
+coverage.out
+dist

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hackathon/authsvc/internal/domain"
+	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
@@ -51,10 +52,7 @@ func (r *Repository) CreateUser(ctx context.Context, user domain.User) error {
 		values ($1, $2, $3, $4, $5, $6, $7)
 	`, user.ID, user.TenantID, user.Email, user.PasswordHash, user.IsActive, user.CreatedAt, user.UpdatedAt)
 	if err != nil {
-		if isUniqueViolation(err) {
-			return domain.ErrAlreadyExists
-		}
-		return fmt.Errorf("insert user: %w", err)
+		return createUserError(err)
 	}
 	return nil
 }
@@ -269,4 +267,22 @@ func (r *Repository) Log(ctx context.Context, event domain.AuditEvent) error {
 
 func isUniqueViolation(err error) bool {
 	return err != nil && (strings.Contains(err.Error(), "SQLSTATE 23505") || strings.Contains(err.Error(), "duplicate key"))
+}
+
+func createUserError(err error) error {
+	if isUniqueViolation(err) {
+		return domain.ErrAlreadyExists
+	}
+	if isTenantForeignKeyViolation(err) {
+		return fmt.Errorf("%w: tenant not found", domain.ErrValidation)
+	}
+	return fmt.Errorf("insert user: %w", err)
+}
+
+func isTenantForeignKeyViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		return pgErr.Code == "23503" && pgErr.ConstraintName == "users_tenant_id_fkey"
+	}
+	return strings.Contains(err.Error(), "SQLSTATE 23503") && strings.Contains(err.Error(), "users_tenant_id_fkey")
 }

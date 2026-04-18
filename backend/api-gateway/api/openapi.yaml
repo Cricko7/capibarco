@@ -1,0 +1,349 @@
+openapi: 3.1.0
+info:
+  title: PetMatch API Gateway
+  version: 0.1.0
+servers:
+  - url: http://localhost:18088
+security:
+  - BearerAuth: []
+  - GuestSession: []
+paths:
+  /healthz:
+    get:
+      tags: [Ops]
+      security: []
+      responses:
+        "200": { description: Healthy }
+  /readyz:
+    get:
+      tags: [Ops]
+      security: []
+      responses:
+        "200": { description: Ready }
+        "503": { $ref: "#/components/responses/Problem" }
+  /metrics:
+    get:
+      tags: [Ops]
+      security: []
+      responses:
+        "200": { description: Prometheus metrics }
+  /v1/auth/guest-sessions:
+    post:
+      tags: [Auth]
+      security: []
+      operationId: createGuestSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateGuestSessionRequest" }
+      responses:
+        "201":
+          description: Guest session created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CreateGuestSessionResponse" }
+  /v1/auth/login:
+    post:
+      tags: [Auth]
+      security: []
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginRequest" }
+      responses:
+        "200": { description: Auth tokens }
+        "401": { $ref: "#/components/responses/Problem" }
+  /v1/auth/register:
+    post:
+      tags: [Auth]
+      security: []
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginRequest" }
+      responses:
+        "201": { description: User registered and auth tokens returned }
+        "400": { $ref: "#/components/responses/Problem" }
+  /v1/feed:
+    get:
+      tags: [Feed]
+      operationId: getFeed
+      parameters:
+        - { name: surface, in: query, schema: { type: integer, default: 1 } }
+        - { name: page_size, in: query, schema: { type: integer, default: 10, maximum: 50 } }
+        - { name: page_token, in: query, schema: { type: string } }
+      responses:
+        "200": { description: Feed cards }
+        "401": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/Problem" }
+  /v1/animals/{animal_id}:
+    get:
+      tags: [Animals]
+      operationId: getAnimal
+      parameters:
+        - { name: animal_id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Animal profile }
+        "404": { $ref: "#/components/responses/Problem" }
+  /v1/animals:
+    post:
+      tags: [Animals]
+      operationId: createAnimal
+      parameters:
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        "201": { description: Animal profile created }
+  /v1/animals/{animal_id}/photos:
+    post:
+      tags: [Animals]
+      operationId: uploadAnimalPhoto
+      parameters:
+        - { name: animal_id, in: path, required: true, schema: { type: string } }
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [photo]
+              properties:
+                photo: { type: string, format: binary }
+                sort_order: { type: integer }
+      responses:
+        "201": { description: Photo stored and metadata registered }
+  /v1/animals/{animal_id}/swipe:
+    post:
+      tags: [Matching]
+      operationId: swipeAnimal
+      parameters:
+        - { name: animal_id, in: path, required: true, schema: { type: string } }
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SwipeAnimalRequest" }
+      responses:
+        "200": { description: Swipe recorded }
+  /v1/animals/{animal_id}:swipe:
+    post:
+      tags: [Matching]
+      operationId: swipeAnimalContractPath
+      parameters:
+        - { name: animal_id, in: path, required: true, schema: { type: string } }
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SwipeAnimalRequest" }
+      responses:
+        "200": { description: Swipe recorded }
+  /v1/animals/{animal_id}/stats:
+    get:
+      tags: [Analytics]
+      operationId: getAnimalStats
+      parameters:
+        - { name: animal_id, in: path, required: true, schema: { type: string } }
+        - { name: bucket, in: query, schema: { type: integer } }
+      responses:
+        "200": { description: Animal statistics from analytics-service }
+  /v1/chat/conversations:
+    get:
+      tags: [Chat]
+      operationId: listConversations
+      parameters:
+        - { name: page_size, in: query, schema: { type: integer, default: 20, maximum: 50 } }
+        - { name: page_token, in: query, schema: { type: string } }
+      responses:
+        "200": { description: Conversations }
+  /v1/chat/conversations/{conversation_id}/messages:
+    get:
+      tags: [Chat]
+      operationId: listMessages
+      parameters:
+        - { name: conversation_id, in: path, required: true, schema: { type: string } }
+        - { name: page_size, in: query, schema: { type: integer, default: 30, maximum: 50 } }
+        - { name: page_token, in: query, schema: { type: string } }
+      responses:
+        "200": { description: Messages }
+    post:
+      tags: [Chat]
+      operationId: sendMessage
+      parameters:
+        - { name: conversation_id, in: path, required: true, schema: { type: string } }
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SendMessageRequest" }
+      responses:
+        "201": { description: Message sent }
+  /ws/chat:
+    get:
+      tags: [Chat]
+      operationId: chatWebSocket
+      parameters:
+        - { name: access_token, in: query, schema: { type: string } }
+      responses:
+        "101": { description: WebSocket bridge to chat-service Connect stream }
+  /v1/billing/donation-intents:
+    post:
+      tags: [Billing]
+      operationId: createDonationIntent
+      parameters:
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateDonationIntentRequest" }
+      responses:
+        "201": { description: Donation payment intent }
+  /v1/notifications:
+    get:
+      tags: [Notifications]
+      operationId: listNotifications
+      parameters:
+        - { name: page_size, in: query, schema: { type: integer, default: 30, maximum: 50 } }
+        - { name: page_token, in: query, schema: { type: string } }
+      responses:
+        "200": { description: Notification inbox }
+        "501": { $ref: "#/components/responses/Problem" }
+  /v1/notifications/stream:
+    get:
+      tags: [Notifications]
+      operationId: streamNotifications
+      responses:
+        "200": { description: SSE stream from notification-service }
+        "501": { $ref: "#/components/responses/Problem" }
+  /v1/notifications/devices:
+    post:
+      tags: [Notifications]
+      operationId: registerDevice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RegisterDeviceRequest" }
+      responses:
+        "201": { description: Device token registered }
+  /v1/notifications/devices/{device_token_id}:
+    delete:
+      tags: [Notifications]
+      operationId: unregisterDevice
+      parameters:
+        - { name: device_token_id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Device token removed }
+  /v1/notifications/{notification_id}/read:
+    post:
+      tags: [Notifications]
+      operationId: markNotificationRead
+      parameters:
+        - { name: notification_id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Notification marked read }
+  /v1/notifications/{notification_id}:read:
+    post:
+      tags: [Notifications]
+      operationId: markNotificationReadContractPath
+      parameters:
+        - { name: notification_id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Notification marked read }
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    GuestSession:
+      type: apiKey
+      in: header
+      name: X-Guest-Session-Token
+  schemas:
+    CreateGuestSessionRequest:
+      type: object
+      required: [device_id]
+      properties:
+        device_id: { type: string }
+        locale: { type: string }
+    CreateGuestSessionResponse:
+      type: object
+      required: [guest_session_token, expires_at, allowed_scopes]
+      properties:
+        guest_session_token: { type: string }
+        expires_at: { type: string, format: date-time }
+        allowed_scopes:
+          type: array
+          items: { type: string }
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, format: password }
+        locale: { type: string }
+    SwipeAnimalRequest:
+      type: object
+      required: [owner_profile_id, direction]
+      properties:
+        owner_profile_id: { type: string }
+        direction: { type: integer, enum: [1, 2] }
+        feed_card_id: { type: string }
+        feed_session_id: { type: string }
+    SendMessageRequest:
+      type: object
+      required: [type, text]
+      properties:
+        type: { type: integer, default: 1 }
+        text: { type: string }
+        client_message_id: { type: string }
+    CreateDonationIntentRequest:
+      type: object
+      required: [target_type, target_id, amount, provider]
+      properties:
+        target_type: { type: integer }
+        target_id: { type: string }
+        amount:
+          type: object
+          properties:
+            currency_code: { type: string }
+            units: { type: integer, format: int64 }
+            nanos: { type: integer }
+        provider: { type: string }
+    RegisterDeviceRequest:
+      type: object
+      required: [token, platform]
+      properties:
+        token: { type: string }
+        platform: { type: string, enum: [ios, android, web] }
+        locale: { type: string }
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+  responses:
+    Problem:
+      description: Problem response
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }

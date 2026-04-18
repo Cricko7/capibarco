@@ -1,0 +1,166 @@
+syntax = "proto3";
+
+package petmatch.user.v1;
+
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+import "petmatch/common/v1/common.proto";
+
+option go_package = "github.com/petmatch/petmatch/gen/go/petmatch/user/v1;userv1";
+
+// UserService owns public profiles, shelters, ratings, and reviews.
+service UserService {
+  rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
+  rpc BatchGetProfiles(BatchGetProfilesRequest) returns (BatchGetProfilesResponse);
+  rpc SearchProfiles(SearchProfilesRequest) returns (SearchProfilesResponse);
+  rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse);
+  rpc CreateReview(CreateReviewRequest) returns (CreateReviewResponse);
+  rpc UpdateReview(UpdateReviewRequest) returns (UpdateReviewResponse);
+  rpc ListReviews(ListReviewsRequest) returns (ListReviewsResponse);
+  rpc GetReputationSummary(GetReputationSummaryRequest) returns (GetReputationSummaryResponse);
+}
+
+enum ProfileType {
+  PROFILE_TYPE_UNSPECIFIED = 0;
+  PROFILE_TYPE_USER = 1;
+  PROFILE_TYPE_SHELTER = 2;
+  PROFILE_TYPE_KENNEL = 3;
+}
+
+message UserProfile {
+  string profile_id = 1;
+  string auth_user_id = 2;
+  ProfileType profile_type = 3;
+  string display_name = 4;
+  string bio = 5;
+  string avatar_url = 6;
+  petmatch.common.v1.Address address = 7;
+  repeated string phone_numbers = 8;
+  repeated string social_links = 9;
+  petmatch.common.v1.Visibility visibility = 10;
+  ReputationSummary reputation = 11;
+  petmatch.common.v1.AuditMetadata audit = 12;
+}
+
+message ReputationSummary {
+  string profile_id = 1;
+  double average_rating = 2;
+  int32 reviews_count = 3;
+  int32 completed_adoptions_count = 4;
+  google.protobuf.Timestamp updated_at = 5;
+}
+
+message Review {
+  string review_id = 1;
+  string target_profile_id = 2;
+  string author_profile_id = 3;
+  int32 rating = 4;
+  string text = 5;
+  optional string match_id = 6;
+  petmatch.common.v1.Visibility visibility = 7;
+  petmatch.common.v1.AuditMetadata audit = 8;
+}
+
+message ProfileFilter {
+  repeated ProfileType profile_types = 1;
+  optional string city = 2;
+  optional double min_average_rating = 3;
+  optional string query = 4;
+  bool include_suspended = 5;
+}
+
+message GetProfileRequest {
+  string profile_id = 1;
+}
+
+message GetProfileResponse {
+  UserProfile profile = 1;
+}
+
+message BatchGetProfilesRequest {
+  repeated string profile_ids = 1;
+}
+
+message BatchGetProfilesResponse {
+  repeated UserProfile profiles = 1;
+}
+
+message SearchProfilesRequest {
+  ProfileFilter filter = 1;
+  petmatch.common.v1.PageRequest page = 2;
+}
+
+message SearchProfilesResponse {
+  repeated UserProfile profiles = 1;
+  petmatch.common.v1.PageResponse page = 2;
+}
+
+message UpdateProfileRequest {
+  string profile_id = 1;
+  UserProfile profile = 2;
+  google.protobuf.FieldMask update_mask = 3;
+}
+
+message UpdateProfileResponse {
+  UserProfile profile = 1;
+}
+
+message CreateReviewRequest {
+  string target_profile_id = 1;
+  string author_profile_id = 2;
+  int32 rating = 3;
+  string text = 4;
+  optional string match_id = 5;
+}
+
+message CreateReviewResponse {
+  Review review = 1;
+}
+
+message UpdateReviewRequest {
+  string review_id = 1;
+  Review review = 2;
+  google.protobuf.FieldMask update_mask = 3;
+}
+
+message UpdateReviewResponse {
+  Review review = 1;
+}
+
+message ListReviewsRequest {
+  string target_profile_id = 1;
+  petmatch.common.v1.PageRequest page = 2;
+}
+
+message ListReviewsResponse {
+  repeated Review reviews = 1;
+  petmatch.common.v1.PageResponse page = 2;
+}
+
+message GetReputationSummaryRequest {
+  string profile_id = 1;
+}
+
+message GetReputationSummaryResponse {
+  ReputationSummary reputation = 1;
+}
+
+message UserProfileCreatedEvent {
+  petmatch.common.v1.EventEnvelope envelope = 1;
+  UserProfile profile = 2;
+}
+
+message UserProfileUpdatedEvent {
+  petmatch.common.v1.EventEnvelope envelope = 1;
+  UserProfile profile = 2;
+}
+
+message ReviewCreatedEvent {
+  petmatch.common.v1.EventEnvelope envelope = 1;
+  Review review = 2;
+}
+
+message ReputationUpdatedEvent {
+  petmatch.common.v1.EventEnvelope envelope = 1;
+  ReputationSummary reputation = 2;
+}

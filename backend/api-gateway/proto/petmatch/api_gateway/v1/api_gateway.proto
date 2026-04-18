@@ -1,0 +1,217 @@
+syntax = "proto3";
+
+package petmatch.api_gateway.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+import "petmatch/auth/auth.proto";
+import "petmatch/analytics/v1/analytics.proto";
+import "petmatch/animal/v1/animal.proto";
+import "petmatch/billing/v1/billing.proto";
+import "petmatch/chat/v1/chat.proto";
+import "petmatch/common/v1/common.proto";
+import "petmatch/feed/v1/feed.proto";
+import "petmatch/matching/v1/matching.proto";
+
+option go_package = "github.com/petmatch/petmatch/gen/go/petmatch/api_gateway/v1;apigatewayv1";
+
+// MobileGateway documents the public mobile REST facade and WebSocket bridge.
+service MobileGateway {
+  rpc CreateGuestSession(CreateGuestSessionRequest) returns (CreateGuestSessionResponse) {
+    option (google.api.http) = {
+      post: "/v1/auth/guest-sessions"
+      body: "*"
+    };
+  }
+
+  rpc Login(LoginRequest) returns (LoginResponse) {
+    option (google.api.http) = {
+      post: "/v1/auth/login"
+      body: "*"
+    };
+  }
+
+  rpc GetFeed(GetFeedRequest) returns (GetFeedResponse) {
+    option (google.api.http) = {
+      get: "/v1/feed"
+    };
+  }
+
+  rpc GetAnimal(GetAnimalRequest) returns (GetAnimalResponse) {
+    option (google.api.http) = {
+      get: "/v1/animals/{animal_id}"
+    };
+  }
+
+  rpc CreateAnimal(CreateAnimalRequest) returns (CreateAnimalResponse) {
+    option (google.api.http) = {
+      post: "/v1/animals"
+      body: "animal"
+    };
+  }
+
+  rpc SwipeAnimal(SwipeAnimalRequest) returns (SwipeAnimalResponse) {
+    option (google.api.http) = {
+      post: "/v1/animals/{animal_id}:swipe"
+      body: "*"
+    };
+  }
+
+  rpc ListConversations(ListConversationsRequest) returns (ListConversationsResponse) {
+    option (google.api.http) = {
+      get: "/v1/chat/conversations"
+    };
+  }
+
+  rpc ListMessages(ListMessagesRequest) returns (ListMessagesResponse) {
+    option (google.api.http) = {
+      get: "/v1/chat/conversations/{conversation_id}/messages"
+    };
+  }
+
+  rpc SendMessage(SendMessageRequest) returns (SendMessageResponse) {
+    option (google.api.http) = {
+      post: "/v1/chat/conversations/{conversation_id}/messages"
+      body: "*"
+    };
+  }
+
+  rpc CreateDonationIntent(CreateDonationIntentRequest) returns (CreateDonationIntentResponse) {
+    option (google.api.http) = {
+      post: "/v1/billing/donation-intents"
+      body: "*"
+    };
+  }
+
+  rpc GetAnimalStats(GetAnimalStatsRequest) returns (GetAnimalStatsResponse) {
+    option (google.api.http) = {
+      get: "/v1/animals/{animal_id}/stats"
+    };
+  }
+
+  // Bridges mobile WebSocket sessions to internal chat bidirectional streams.
+  rpc ChatWebSocketBridge(stream petmatch.chat.v1.ClientChatFrame) returns (stream petmatch.chat.v1.ServerChatFrame);
+}
+
+message CreateGuestSessionRequest {
+  string device_id = 1;
+  string locale = 2;
+}
+
+message CreateGuestSessionResponse {
+  string guest_session_token = 1;
+  google.protobuf.Timestamp expires_at = 2;
+  repeated string allowed_scopes = 3;
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+  string locale = 3;
+}
+
+message LoginResponse {
+  auth.v1.AuthResponse auth = 1;
+}
+
+message GetFeedRequest {
+  petmatch.feed.v1.FeedSurface surface = 1;
+  petmatch.feed.v1.FeedFilter filter = 2;
+  int32 page_size = 3;
+  string page_token = 4;
+}
+
+message GetFeedResponse {
+  repeated petmatch.feed.v1.FeedCard cards = 1;
+  string next_page_token = 2;
+  string feed_session_id = 3;
+}
+
+message GetAnimalRequest {
+  string animal_id = 1;
+}
+
+message GetAnimalResponse {
+  petmatch.animal.v1.AnimalProfile animal = 1;
+}
+
+message CreateAnimalRequest {
+  petmatch.animal.v1.AnimalProfile animal = 1;
+  string idempotency_key = 2;
+}
+
+message CreateAnimalResponse {
+  petmatch.animal.v1.AnimalProfile animal = 1;
+}
+
+message SwipeAnimalRequest {
+  string animal_id = 1;
+  string owner_profile_id = 2;
+  petmatch.matching.v1.SwipeDirection direction = 3;
+  optional string feed_card_id = 4;
+  optional string feed_session_id = 5;
+  string idempotency_key = 6;
+}
+
+message SwipeAnimalResponse {
+  petmatch.matching.v1.Swipe swipe = 1;
+  petmatch.matching.v1.Match match = 2;
+  optional string conversation_id = 3;
+}
+
+message ListConversationsRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+}
+
+message ListConversationsResponse {
+  repeated petmatch.chat.v1.Conversation conversations = 1;
+  string next_page_token = 2;
+}
+
+message ListMessagesRequest {
+  string conversation_id = 1;
+  int32 page_size = 2;
+  string page_token = 3;
+}
+
+message ListMessagesResponse {
+  repeated petmatch.chat.v1.Message messages = 1;
+  string next_page_token = 2;
+}
+
+message SendMessageRequest {
+  string conversation_id = 1;
+  petmatch.chat.v1.MessageType type = 2;
+  string text = 3;
+  string client_message_id = 4;
+  string idempotency_key = 5;
+}
+
+message SendMessageResponse {
+  petmatch.chat.v1.Message message = 1;
+}
+
+message CreateDonationIntentRequest {
+  petmatch.billing.v1.DonationTargetType target_type = 1;
+  string target_id = 2;
+  petmatch.common.v1.MoneyAmount amount = 3;
+  string provider = 4;
+  string idempotency_key = 5;
+}
+
+message CreateDonationIntentResponse {
+  petmatch.billing.v1.Donation donation = 1;
+  string payment_url = 2;
+  string client_secret = 3;
+}
+
+message GetAnimalStatsRequest {
+  string animal_id = 1;
+  petmatch.common.v1.TimeRange time_range = 2;
+  petmatch.analytics.v1.TimeBucket bucket = 3;
+}
+
+message GetAnimalStatsResponse {
+  petmatch.analytics.v1.AnimalStats stats = 1;
+}
