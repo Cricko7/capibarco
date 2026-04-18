@@ -52,7 +52,7 @@ The app supports `--dart-define` configuration:
 ```bash
 flutter run ^
   --dart-define=APP_ENV=staging ^
-  --dart-define=API_GATEWAY_URL=http://10.0.2.2:18088 ^
+  --dart-define=API_GATEWAY_URL=http://72.56.39.129 ^
   --dart-define=API_VERSION=v1
 ```
 
@@ -67,7 +67,7 @@ Available keys:
 
 ```bash
 flutter pub get
-flutter run --dart-define=API_GATEWAY_URL=http://10.0.2.2:18088
+flutter run --dart-define=API_GATEWAY_URL=http://72.56.39.129
 ```
 
 ## Test

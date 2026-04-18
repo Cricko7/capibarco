@@ -33,7 +33,7 @@ class AppEnvironment {
     const flavorName = String.fromEnvironment('APP_ENV', defaultValue: 'local');
     const gatewayBaseUrl = String.fromEnvironment(
       'API_GATEWAY_URL',
-      defaultValue: 'http://localhost:18088',
+      defaultValue: 'http://72.56.39.129',
     );
     const apiVersion = String.fromEnvironment(
       'API_VERSION',
