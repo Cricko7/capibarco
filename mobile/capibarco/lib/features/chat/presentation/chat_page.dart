@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../app/localization/app_localizations.dart';
@@ -15,11 +16,13 @@ class ChatPage extends ConsumerStatefulWidget {
   const ChatPage({
     required this.conversationId,
     required this.title,
+    required this.returnTo,
     super.key,
   });
 
   final String conversationId;
   final String title;
+  final String returnTo;
 
   @override
   ConsumerState<ChatPage> createState() => _ChatPageState();
@@ -112,7 +115,29 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       body: PageShell(
         child: Column(
           children: <Widget>[
-            SectionHeader(title: title, subtitle: l10n.chatReady),
+            Row(
+              children: <Widget>[
+                IconButton.filledTonal(
+                  onPressed: () {
+                    if (widget.returnTo.isNotEmpty) {
+                      context.go(widget.returnTo);
+                      return;
+                    }
+                    if (context.canPop()) {
+                      context.pop();
+                      return;
+                    }
+                    context.go('/discover');
+                  },
+                  icon: const Icon(Icons.arrow_back_rounded),
+                  tooltip: 'Назад',
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: SectionHeader(title: title, subtitle: l10n.chatReady),
+                ),
+              ],
+            ),
             const SizedBox(height: 16),
             Expanded(
               child: _isLoading && _messages.isEmpty

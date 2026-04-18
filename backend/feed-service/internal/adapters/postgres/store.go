@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lib/pq"
+
 	analyticsv1 "github.com/petmatch/petmatch/gen/go/petmatch/analytics/v1"
 	animalv1 "github.com/petmatch/petmatch/gen/go/petmatch/animal/v1"
 	billingv1 "github.com/petmatch/petmatch/gen/go/petmatch/billing/v1"
@@ -56,7 +58,7 @@ func (s *Store) ListCandidates(ctx context.Context, filter *animalv1.AnimalFilte
 			&row.AnimalProto,
 			&row.OwnerDisplayName,
 			&row.OwnerAverageRating,
-			&row.RankingReasons,
+			pq.Array(&row.RankingReasons),
 			&row.ScoreComponents,
 			&row.DistanceKM,
 			&row.OwnerHidden,
@@ -357,7 +359,7 @@ WHERE animal_id = $1`, animalID).Scan(
 		&row.AnimalProto,
 		&row.OwnerDisplayName,
 		&row.OwnerAverageRating,
-		&row.RankingReasons,
+		pq.Array(&row.RankingReasons),
 		&row.ScoreComponents,
 		&row.DistanceKM,
 		&row.OwnerHidden,
@@ -461,7 +463,7 @@ func (r candidateRow) args() []any {
 		r.AnimalProto,
 		r.OwnerDisplayName,
 		r.OwnerAverageRating,
-		r.RankingReasons,
+		pq.Array(r.RankingReasons),
 		r.ScoreComponents,
 		r.DistanceKM,
 		r.OwnerHidden,

@@ -33,6 +33,7 @@ class FeedRepositoryImpl {
                   'feed_session_id': card.feedSessionId,
                   'animal': <String, dynamic>{
                     'animal_id': card.animalId,
+                    'owner_profile_id': card.ownerProfileId,
                     'name': card.name,
                     'species': card.species,
                     'description': card.description,
@@ -75,7 +76,7 @@ class FeedRepositoryImpl {
     final response = await _remoteDataSource.swipeAnimal(
       animalId: animalId,
       ownerProfileId: ownerProfileId,
-      direction: liked ? 1 : 2,
+      direction: liked ? 2 : 1,
       feedCardId: feedCardId,
       feedSessionId: feedSessionId,
     );

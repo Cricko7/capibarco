@@ -3,6 +3,7 @@ class FeedCardEntity {
     required this.id,
     required this.feedSessionId,
     required this.animalId,
+    required this.ownerProfileId,
     required this.name,
     required this.speciesLabel,
     required this.description,
@@ -16,6 +17,7 @@ class FeedCardEntity {
   final String id;
   final String feedSessionId;
   final String animalId;
+  final String ownerProfileId;
   final String name;
   final String speciesLabel;
   final String description;

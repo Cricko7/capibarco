@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../api/animals_api_client.dart';
 import '../dtos/animal_listing_dto.dart';
 
@@ -42,11 +44,11 @@ class AnimalsRemoteDataSource {
 
   Future<AnimalListingDto> uploadAnimalPhoto({
     required String animalId,
-    required String photoPath,
+    required Uint8List photoBytes,
     required String fileName,
   }) => _apiClient.uploadAnimalPhoto(
     animalId: animalId,
-    photoPath: photoPath,
+    photoBytes: photoBytes,
     fileName: fileName,
   );
 }

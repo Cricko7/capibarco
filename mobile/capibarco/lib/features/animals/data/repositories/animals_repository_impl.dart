@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../../../../core/error/error_mapper.dart';
 import '../../domain/entities/animal_listing.dart';
 import '../datasources/animals_remote_data_source.dart';
@@ -25,7 +27,6 @@ class AnimalsRepositoryImpl {
     required List<String> traits,
     required bool vaccinated,
     required bool sterilized,
-    required bool publishNow,
     required String city,
   }) async {
     try {
@@ -42,8 +43,8 @@ class AnimalsRepositoryImpl {
         traits: traits,
         vaccinated: vaccinated,
         sterilized: sterilized,
-        status: publishNow ? 'ANIMAL_STATUS_AVAILABLE' : 'ANIMAL_STATUS_DRAFT',
-        visibility: publishNow ? 'VISIBILITY_PUBLIC' : 'VISIBILITY_PRIVATE',
+        status: 'ANIMAL_STATUS_AVAILABLE',
+        visibility: 'VISIBILITY_PUBLIC',
         city: city,
       );
       return animal.toDomain();
@@ -54,13 +55,13 @@ class AnimalsRepositoryImpl {
 
   Future<AnimalListingEntity> uploadAnimalPhoto({
     required String animalId,
-    required String photoPath,
+    required Uint8List photoBytes,
     required String fileName,
   }) async {
     try {
       final animal = await _remoteDataSource.uploadAnimalPhoto(
         animalId: animalId,
-        photoPath: photoPath,
+        photoBytes: photoBytes,
         fileName: fileName,
       );
       return animal.toDomain();

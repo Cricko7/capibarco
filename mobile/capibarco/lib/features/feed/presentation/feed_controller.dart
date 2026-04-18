@@ -130,7 +130,9 @@ class FeedController extends Notifier<FeedState> {
 
     await _repository.swipeAnimal(
       animalId: card.animalId,
-      ownerProfileId: profileId,
+      ownerProfileId: card.ownerProfileId.isEmpty
+          ? profileId
+          : card.ownerProfileId,
       liked: liked,
       feedCardId: card.id,
       feedSessionId: state.feedSessionId.isEmpty

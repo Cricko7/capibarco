@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -76,8 +78,8 @@ class AnimalCreateController extends Notifier<AnimalCreateState> {
     required List<String> traits,
     required bool vaccinated,
     required bool sterilized,
-    required bool publishNow,
     XFile? photo,
+    Uint8List? photoBytes,
   }) async {
     final profile = ref.read(profileControllerProvider).profile;
     if (profile == null) {
@@ -107,13 +109,13 @@ class AnimalCreateController extends Notifier<AnimalCreateState> {
         traits: traits,
         vaccinated: vaccinated,
         sterilized: sterilized,
-        publishNow: publishNow,
         city: profile.city,
       );
       if (photo != null) {
+        final bytes = photoBytes ?? await photo.readAsBytes();
         await _repository.uploadAnimalPhoto(
           animalId: animal.id,
-          photoPath: photo.path,
+          photoBytes: bytes,
           fileName: photo.name,
         );
       }

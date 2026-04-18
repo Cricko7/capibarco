@@ -44,6 +44,7 @@ services:
     command:
       - redpanda
       - start
+      - --set auto_create_topics_enabled=true
       - --overprovisioned
       - --smp
       - "1"

@@ -72,7 +72,7 @@ class RestServiceClient {
         headers: headers,
         extra: <String, Object?>{
           'authRequired': requiresAuth,
-          'retryable': idempotent,
+          'retryable': idempotent || idempotencyKey != null,
         },
       ),
     );

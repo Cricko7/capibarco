@@ -5,6 +5,7 @@ class FeedCardDto {
     required this.id,
     required this.feedSessionId,
     required this.animalId,
+    required this.ownerProfileId,
     required this.name,
     required this.species,
     required this.description,
@@ -18,6 +19,7 @@ class FeedCardDto {
   final String id;
   final String feedSessionId;
   final String animalId;
+  final String ownerProfileId;
   final String name;
   final String species;
   final String description;
@@ -42,6 +44,7 @@ class FeedCardDto {
       id: json['feed_card_id'] as String? ?? '',
       feedSessionId: json['feed_session_id'] as String? ?? '',
       animalId: animal['animal_id'] as String? ?? '',
+      ownerProfileId: animal['owner_profile_id'] as String? ?? '',
       name: animal['name'] as String? ?? 'Unknown',
       species: animal['species'] as String? ?? 'SPECIES_UNSPECIFIED',
       description: animal['description'] as String? ?? '',
@@ -61,6 +64,7 @@ class FeedCardDto {
       id: id,
       feedSessionId: feedSessionId,
       animalId: animalId,
+      ownerProfileId: ownerProfileId,
       name: name,
       speciesLabel: species.replaceAll('SPECIES_', '').toLowerCase(),
       description: description,

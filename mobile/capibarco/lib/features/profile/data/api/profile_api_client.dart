@@ -57,6 +57,22 @@ class ProfileApiClient {
         .toList();
   }
 
+  Future<ProfileReviewDto> createReview({
+    required String profileId,
+    required int rating,
+    required String text,
+  }) async {
+    final response = await _client.postJson(
+      '/profiles/$profileId/reviews',
+      data: <String, dynamic>{
+        'rating': rating,
+        'text': text,
+      },
+    );
+    final review = response['review'] as Map<String, dynamic>? ?? response;
+    return ProfileReviewDto.fromJson(review);
+  }
+
   Future<List<ProfileAnimalCardDto>> getProfileAnimals(String profileId) async {
     final response = await _client.getMap(
       '/profiles/$profileId/animals',

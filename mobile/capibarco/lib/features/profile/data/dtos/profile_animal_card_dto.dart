@@ -6,6 +6,7 @@ class ProfileAnimalCardDto {
     required this.name,
     required this.species,
     required this.breed,
+    required this.description,
     required this.city,
     required this.photoUrl,
     required this.status,
@@ -15,6 +16,7 @@ class ProfileAnimalCardDto {
   final String name;
   final String species;
   final String breed;
+  final String description;
   final String city;
   final String photoUrl;
   final String status;
@@ -31,6 +33,7 @@ class ProfileAnimalCardDto {
       name: json['name'] as String? ?? 'Pet',
       species: _enumLabel(json['species'], 'SPECIES'),
       breed: json['breed'] as String? ?? '',
+      description: json['description'] as String? ?? '',
       city: location['city'] as String? ?? '',
       photoUrl: firstPhoto['url'] as String? ?? '',
       status: _enumLabel(json['status'], 'ANIMAL_STATUS'),
@@ -43,6 +46,7 @@ class ProfileAnimalCardDto {
       name: name,
       speciesLabel: species,
       breed: breed,
+      description: description,
       city: city,
       photoUrl: photoUrl,
       statusLabel: status,
@@ -55,6 +59,9 @@ class ProfileAnimalCardDto {
     }
     final value = raw as String? ?? '';
     if (value.isEmpty) {
+      return '';
+    }
+    if (value == 'ANIMAL_STATUS_DRAFT') {
       return '';
     }
     return value

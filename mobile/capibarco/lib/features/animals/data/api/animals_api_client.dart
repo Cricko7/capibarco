@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../../../../core/network/rest_service_client.dart';
 import 'package:dio/dio.dart';
 import '../dtos/animal_listing_dto.dart';
@@ -50,14 +52,14 @@ class AnimalsApiClient {
 
   Future<AnimalListingDto> uploadAnimalPhoto({
     required String animalId,
-    required String photoPath,
+    required Uint8List photoBytes,
     required String fileName,
   }) async {
     final response = await _client.postMultipart(
       '/animals/$animalId/photos',
       idempotent: true,
       data: FormData.fromMap(<String, dynamic>{
-        'photo': await MultipartFile.fromFile(photoPath, filename: fileName),
+        'photo': MultipartFile.fromBytes(photoBytes, filename: fileName),
       }),
     );
     return AnimalListingDto.fromJson(response);

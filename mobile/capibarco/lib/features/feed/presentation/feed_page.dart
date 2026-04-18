@@ -1,13 +1,16 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/localization/app_localizations.dart';
 import '../../billing/presentation/donate_animal_sheet.dart';
+import '../../../shared/presentation/animal_details_sheet.dart';
 import '../../../shared/presentation/page_shell.dart';
 import '../../../shared/presentation/section_header.dart';
 import '../../../shared/presentation/soft_card.dart';
 import '../../../shared/presentation/stale_banner.dart';
 import '../../../shared/presentation/status_view.dart';
+import '../../auth/presentation/auth_controller.dart';
+import '../../profile/presentation/profile_controller.dart';
 import 'feed_controller.dart';
 
 class FeedPage extends ConsumerStatefulWidget {
@@ -30,6 +33,9 @@ class _FeedPageState extends ConsumerState<FeedPage> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final state = ref.watch(feedControllerProvider);
+    final currentProfileId =
+        ref.watch(profileControllerProvider).profile?.id ??
+        ref.watch(authControllerProvider).session?.user.id;
 
     if (state.isLoading && state.cards.isEmpty) {
       return Scaffold(body: StatusView.loading(message: l10n.loading));
@@ -70,11 +76,18 @@ class _FeedPageState extends ConsumerState<FeedPage> {
                 )
               else
                 ...state.cards.map(
-                  (card) => Padding(
+                  (card) {
+                    final isOwnCard =
+                        currentProfileId != null &&
+                        currentProfileId == card.ownerProfileId;
+                    return Padding(
                     padding: const EdgeInsets.only(bottom: 16),
-                    child: SoftCard(
-                      padding: EdgeInsets.zero,
-                      child: Column(
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(28),
+                      onTap: () => _showAnimalDetails(context, ref, card),
+                      child: SoftCard(
+                        padding: EdgeInsets.zero,
+                        child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
                           ClipRRect(
@@ -142,7 +155,7 @@ class _FeedPageState extends ConsumerState<FeedPage> {
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  '${card.ownerDisplayName}${card.city.isNotEmpty ? ' · ${card.city}' : ''}',
+                                  '${card.ownerDisplayName}${card.city.isNotEmpty ? ' В· ${card.city}' : ''}',
                                   style: Theme.of(
                                     context,
                                   ).textTheme.titleMedium,
@@ -198,11 +211,17 @@ class _FeedPageState extends ConsumerState<FeedPage> {
                                   children: <Widget>[
                                     Expanded(
                                       child: OutlinedButton.icon(
-                                        onPressed: () => ref
-                                            .read(
-                                              feedControllerProvider.notifier,
-                                            )
-                                            .swipe(card: card, liked: false),
+                                        onPressed: isOwnCard
+                                            ? null
+                                            : () => ref
+                                                  .read(
+                                                    feedControllerProvider
+                                                        .notifier,
+                                                  )
+                                                  .swipe(
+                                                    card: card,
+                                                    liked: false,
+                                                  ),
                                         icon: const Icon(Icons.close_rounded),
                                         label: Text(l10n.pass),
                                       ),
@@ -210,11 +229,17 @@ class _FeedPageState extends ConsumerState<FeedPage> {
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: FilledButton.icon(
-                                        onPressed: () => ref
-                                            .read(
-                                              feedControllerProvider.notifier,
-                                            )
-                                            .swipe(card: card, liked: true),
+                                        onPressed: isOwnCard
+                                            ? null
+                                            : () => ref
+                                                  .read(
+                                                    feedControllerProvider
+                                                        .notifier,
+                                                  )
+                                                  .swipe(
+                                                    card: card,
+                                                    liked: true,
+                                                  ),
                                         icon: const Icon(
                                           Icons.favorite_rounded,
                                         ),
@@ -227,9 +252,11 @@ class _FeedPageState extends ConsumerState<FeedPage> {
                             ),
                           ),
                         ],
+                        ),
                       ),
                     ),
-                  ),
+                  );
+                  },
                 ),
               if (state.nextPageToken.isNotEmpty) ...<Widget>[
                 const SizedBox(height: 8),
@@ -253,5 +280,45 @@ class _FeedPageState extends ConsumerState<FeedPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _showAnimalDetails(
+    BuildContext context,
+    WidgetRef ref,
+    card,
+  ) {
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).colorScheme.surfaceContainerLowest,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => AnimalDetailsSheet(
+        name: card.name,
+        subtitle:
+            '${card.speciesLabel}${card.city.isNotEmpty ? ' В· ${card.city}' : ''}',
+        description: card.description,
+        photoUrl: card.photoUrl,
+        respondLabel: _isOwnCard(ref, card) ? 'Own card' : 'Respond',
+        onRespond: _isOwnCard(ref, card)
+            ? null
+            : () async {
+                await ref
+                    .read(feedControllerProvider.notifier)
+                    .swipe(card: card, liked: true);
+                if (sheetContext.mounted) {
+                  Navigator.of(sheetContext).pop();
+                }
+              },
+      ),
+    );
+  }
+
+  bool _isOwnCard(WidgetRef ref, card) {
+    final currentProfileId =
+        ref.read(profileControllerProvider).profile?.id ??
+        ref.read(authControllerProvider).session?.user.id;
+    return currentProfileId != null && currentProfileId == card.ownerProfileId;
   }
 }

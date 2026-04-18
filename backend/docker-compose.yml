@@ -251,6 +251,9 @@ services:
       - |
         sleep 5
         for topic in \
+          feed.card_served \
+          feed.card_opened \
+          feed.filters_applied \
           animal.profile_created \
           animal.profile_updated \
           animal.profile_published \

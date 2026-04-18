@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -32,8 +32,8 @@ class _AnimalCreatePageState extends ConsumerState<AnimalCreatePage> {
   String _size = 'ANIMAL_SIZE_MEDIUM';
   bool _vaccinated = true;
   bool _sterilized = false;
-  bool _publishNow = true;
   XFile? _selectedPhoto;
+  Uint8List? _selectedPhotoBytes;
 
   @override
   void dispose() {
@@ -177,14 +177,15 @@ class _AnimalCreatePageState extends ConsumerState<AnimalCreatePage> {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    if (_selectedPhoto != null) ...<Widget>[
+                    if (_selectedPhoto != null &&
+                        _selectedPhotoBytes != null) ...<Widget>[
                       ClipRRect(
                         borderRadius: BorderRadius.circular(24),
                         child: SizedBox(
                           height: 180,
                           width: double.infinity,
-                          child: Image.file(
-                            File(_selectedPhoto!.path),
+                          child: Image.memory(
+                            _selectedPhotoBytes!,
                             fit: BoxFit.cover,
                           ),
                         ),
@@ -209,7 +210,10 @@ class _AnimalCreatePageState extends ConsumerState<AnimalCreatePage> {
                           IconButton.filledTonal(
                             onPressed: state.isSubmitting
                                 ? null
-                                : () => setState(() => _selectedPhoto = null),
+                                : () => setState(() {
+                                    _selectedPhoto = null;
+                                    _selectedPhotoBytes = null;
+                                  }),
                             icon: const Icon(Icons.delete_outline_rounded),
                           ),
                         ],
@@ -227,12 +231,6 @@ class _AnimalCreatePageState extends ConsumerState<AnimalCreatePage> {
                       title: Text(l10n.sterilized),
                       value: _sterilized,
                       onChanged: (value) => setState(() => _sterilized = value),
-                    ),
-                    SwitchListTile.adaptive(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(l10n.publishNow),
-                      value: _publishNow,
-                      onChanged: (value) => setState(() => _publishNow = value),
                     ),
                     if (state.errorMessage != null) ...<Widget>[
                       const SizedBox(height: 12),
@@ -274,8 +272,8 @@ class _AnimalCreatePageState extends ConsumerState<AnimalCreatePage> {
                                         .toList(),
                                     vaccinated: _vaccinated,
                                     sterilized: _sterilized,
-                                    publishNow: _publishNow,
                                     photo: _selectedPhoto,
+                                    photoBytes: _selectedPhotoBytes,
                                   );
                               if (success && context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
@@ -312,6 +310,13 @@ class _AnimalCreatePageState extends ConsumerState<AnimalCreatePage> {
     if (photo == null || !mounted) {
       return;
     }
-    setState(() => _selectedPhoto = photo);
+    final photoBytes = await photo.readAsBytes();
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _selectedPhoto = photo;
+      _selectedPhotoBytes = photoBytes;
+    });
   }
 }
