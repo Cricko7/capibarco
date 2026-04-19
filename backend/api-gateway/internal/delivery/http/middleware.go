@@ -169,14 +169,21 @@ func bucketKind(key string) string {
 }
 
 func bearerToken(c *gin.Context) string {
-	value := c.GetHeader("Authorization")
+	if value := strings.TrimSpace(c.GetHeader("Authorization")); value != "" {
+		if strings.HasPrefix(strings.ToLower(value), "bearer ") {
+			return strings.TrimSpace(value[7:])
+		}
+		return ""
+	}
+
+	value := strings.TrimSpace(c.Query("access_token"))
 	if value == "" {
-		value = c.Query("access_token")
+		return ""
 	}
 	if strings.HasPrefix(strings.ToLower(value), "bearer ") {
 		return strings.TrimSpace(value[7:])
 	}
-	return ""
+	return value
 }
 
 func strconvRetryAfter(d time.Duration) string {

@@ -228,6 +228,30 @@ func TestBeginSSEWritesHeadersBeforeFirstEvent(t *testing.T) {
 	}
 }
 
+func TestBearerTokenAcceptsAuthorizationHeaderAndRawQueryToken(t *testing.T) {
+	t.Run("authorization header", func(t *testing.T) {
+		recorder := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(recorder)
+		request := httptest.NewRequest(http.MethodGet, "/ws/chat", nil)
+		request.Header.Set("Authorization", "Bearer token-from-header")
+		ctx.Request = request
+
+		if got := bearerToken(ctx); got != "token-from-header" {
+			t.Fatalf("bearerToken() = %q, want %q", got, "token-from-header")
+		}
+	})
+
+	t.Run("raw query token", func(t *testing.T) {
+		recorder := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(recorder)
+		ctx.Request = httptest.NewRequest(http.MethodGet, "/ws/chat?access_token=token-from-query", nil)
+
+		if got := bearerToken(ctx); got != "token-from-query" {
+			t.Fatalf("bearerToken() = %q, want %q", got, "token-from-query")
+		}
+	})
+}
+
 func TestPublishAnimalRouteIsRegistered(t *testing.T) {
 	registry := prometheus.NewRegistry()
 	server := New(
