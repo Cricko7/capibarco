@@ -120,6 +120,7 @@ void main() {
             conversationId: 'conversation-1',
             title: 'Adoption chat',
             returnTo: '/chats',
+            counterpartProfileId: '',
           ),
         ),
       ),

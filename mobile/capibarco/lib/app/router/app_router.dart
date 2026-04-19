@@ -130,6 +130,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           conversationId: state.pathParameters['conversationId'] ?? '',
           title: state.uri.queryParameters['title'] ?? '',
           returnTo: state.uri.queryParameters['return_to'] ?? '',
+          counterpartProfileId: state.uri.queryParameters['profile_id'] ?? '',
         ),
       ),
     ],
@@ -162,7 +163,10 @@ class MainShell extends StatelessWidget {
             icon: Icon(Icons.notifications_rounded),
             label: 'Alerts',
           ),
-          NavigationDestination(icon: Icon(Icons.forum_rounded), label: 'Chats'),
+          NavigationDestination(
+            icon: Icon(Icons.forum_rounded),
+            label: 'Chats',
+          ),
           NavigationDestination(
             icon: Icon(Icons.person_rounded),
             label: 'Profile',

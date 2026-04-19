@@ -6,11 +6,16 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../app/localization/app_localizations.dart';
+import '../../../bootstrap/providers.dart';
+import '../../../core/config/environment.dart';
+import '../../../core/network/network_providers.dart';
+import '../../../core/network/rest_service_client.dart';
 import '../../../shared/presentation/page_shell.dart';
 import '../../../shared/presentation/section_header.dart';
 import '../../../shared/presentation/soft_card.dart';
 import '../../../shared/presentation/status_view.dart';
 import '../../auth/presentation/auth_controller.dart';
+import '../../profile/data/api/profile_api_client.dart';
 import '../domain/entities/chat_message.dart';
 import 'chat_repository_provider.dart';
 
@@ -19,18 +24,27 @@ class ChatPage extends ConsumerStatefulWidget {
     required this.conversationId,
     required this.title,
     required this.returnTo,
+    required this.counterpartProfileId,
     super.key,
   });
 
   final String conversationId;
   final String title;
   final String returnTo;
+  final String counterpartProfileId;
 
   @override
   ConsumerState<ChatPage> createState() => _ChatPageState();
 }
 
 class _ChatPageState extends ConsumerState<ChatPage> {
+  static final RegExp _uuidPattern = RegExp(
+    r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+  );
+  static final RegExp _chatWithUuidPattern = RegExp(
+    r'^(?:Chat with|Чат с)\s+([0-9a-fA-F-]{36})$',
+  );
+
   final _messageController = TextEditingController();
   final _messagesScrollController = ScrollController();
   StreamSubscription<ChatMessageEntity>? _messagesSubscription;
@@ -38,10 +52,18 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   bool _isLoading = true;
   bool _isSending = false;
   String? _errorMessage;
+  String _resolvedCounterpartProfileId = '';
+  String _resolvedTitle = '';
+  String _counterpartAvatarUrl = '';
 
   @override
   void initState() {
     super.initState();
+    _resolvedCounterpartProfileId = widget.counterpartProfileId.trim();
+    _resolvedTitle = _sanitizeTitle(
+      widget.title,
+      counterpartProfileId: _resolvedCounterpartProfileId,
+    );
     Future<void>.microtask(_initializeChat);
   }
 
@@ -54,8 +76,70 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   }
 
   Future<void> _initializeChat() async {
+    unawaited(_loadCounterpartProfile());
     _subscribeToRealtime();
     await _loadMessages();
+  }
+
+  Future<void> _loadCounterpartProfile() async {
+    var counterpartProfileId = _resolvedCounterpartProfileId;
+    final currentProfileId =
+        ref.read(authControllerProvider).session?.user.id ?? '';
+    if (counterpartProfileId.isEmpty && currentProfileId.isNotEmpty) {
+      try {
+        final conversations = await ref
+            .read(chatRepositoryProvider)
+            .listConversations();
+        for (final conversation in conversations) {
+          if (conversation.id != widget.conversationId) {
+            continue;
+          }
+          counterpartProfileId = conversation.counterpartProfileId(
+            currentProfileId,
+          );
+          break;
+        }
+      } catch (_) {
+        // The chat can still work without profile navigation metadata.
+      }
+    }
+
+    if (counterpartProfileId.isEmpty) {
+      if (!mounted || _resolvedCounterpartProfileId.isNotEmpty) {
+        return;
+      }
+      setState(() => _resolvedCounterpartProfileId = '');
+      return;
+    }
+
+    var nextTitle = _resolvedTitle;
+    var nextAvatarUrl = _counterpartAvatarUrl;
+
+    try {
+      final environment = ref.read(appEnvironmentProvider);
+      final profile = await ProfileApiClient(
+        RestServiceClient(
+          dio: ref.read(authenticatedDioProvider),
+          config: environment.service(ServiceKind.profiles),
+        ),
+      ).getProfile(counterpartProfileId);
+      final displayName = profile.displayName.trim();
+      if (displayName.isNotEmpty) {
+        nextTitle = displayName;
+      }
+      nextAvatarUrl = profile.avatarUrl.trim();
+    } catch (_) {
+      // Fallback to the safe title and icon-only avatar.
+    }
+
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _resolvedCounterpartProfileId = counterpartProfileId;
+      _resolvedTitle = nextTitle;
+      _counterpartAvatarUrl = nextAvatarUrl;
+    });
   }
 
   Future<void> _loadMessages() async {
@@ -256,7 +340,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     final l10n = AppLocalizations.of(context);
     final currentProfileId =
         ref.watch(authControllerProvider).session?.user.id ?? '';
-    final title = widget.title.isEmpty ? l10n.chat : widget.title;
+    final title = _resolvedTitle.isEmpty ? l10n.chat : _resolvedTitle;
 
     return Scaffold(
       body: PageShell(
@@ -283,6 +367,30 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                 Expanded(
                   child: SectionHeader(title: title, subtitle: l10n.chatReady),
                 ),
+                if (_resolvedCounterpartProfileId.isNotEmpty) ...<Widget>[
+                  const SizedBox(width: 12),
+                  Tooltip(
+                    message: l10n.openProfile,
+                    child: InkWell(
+                      onTap: () => context.push(
+                        '/profiles/$_resolvedCounterpartProfileId',
+                      ),
+                      borderRadius: BorderRadius.circular(999),
+                      child: CircleAvatar(
+                        radius: 22,
+                        backgroundColor: Theme.of(
+                          context,
+                        ).colorScheme.primaryContainer,
+                        backgroundImage: _counterpartAvatarUrl.isNotEmpty
+                            ? NetworkImage(_counterpartAvatarUrl)
+                            : null,
+                        child: _counterpartAvatarUrl.isEmpty
+                            ? const Icon(Icons.person_rounded)
+                            : null,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
             const SizedBox(height: 16),
@@ -378,5 +486,24 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         ),
       ),
     );
+  }
+
+  String _sanitizeTitle(
+    String rawTitle, {
+    required String counterpartProfileId,
+  }) {
+    final trimmed = rawTitle.trim();
+    if (trimmed.isEmpty) {
+      return '';
+    }
+    if (trimmed == counterpartProfileId || _uuidPattern.hasMatch(trimmed)) {
+      return '';
+    }
+    final chatWithUuidMatch = _chatWithUuidPattern.firstMatch(trimmed);
+    if (chatWithUuidMatch != null &&
+        _uuidPattern.hasMatch(chatWithUuidMatch.group(1)!)) {
+      return '';
+    }
+    return trimmed;
   }
 }

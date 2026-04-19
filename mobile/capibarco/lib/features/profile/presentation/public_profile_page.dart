@@ -111,10 +111,16 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
         return;
       }
       setState(() => _isStartingChat = false);
-      final returnTo = Uri.encodeComponent('/profiles/${widget.profileId}');
-      context.push(
-        '/chat/${conversation.id}?title=${Uri.encodeComponent(_detail!.profile.displayName)}&return_to=$returnTo',
-      );
+      final destination = Uri(
+        path: '/chat/${conversation.id}',
+        queryParameters: <String, String>{
+          'return_to': '/profiles/${widget.profileId}',
+          'profile_id': widget.profileId,
+          if (_detail!.profile.displayName.trim().isNotEmpty)
+            'title': _detail!.profile.displayName.trim(),
+        },
+      ).toString();
+      context.push(destination);
     } catch (error) {
       if (!mounted) {
         return;

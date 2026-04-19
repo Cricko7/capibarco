@@ -182,12 +182,26 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
       return;
     }
     final existingConversationId = item.data['conversation_id'] ?? '';
+    final targetProfileId = item.data['adopter_profile_id'] ?? '';
+    final currentProfileId =
+        ref.read(authControllerProvider).session?.user.id ?? '';
+    final counterpartProfileId =
+        targetProfileId.isNotEmpty && targetProfileId != currentProfileId
+        ? targetProfileId
+        : '';
     if (existingConversationId.isNotEmpty) {
-      context.go('/chat/$existingConversationId?return_to=/notifications');
+      final destination = Uri(
+        path: '/chat/$existingConversationId',
+        queryParameters: <String, String>{
+          'return_to': '/notifications',
+          if (counterpartProfileId.isNotEmpty)
+            'profile_id': counterpartProfileId,
+        },
+      ).toString();
+      context.go(destination);
       return;
     }
 
-    final targetProfileId = item.data['adopter_profile_id'] ?? '';
     if (targetProfileId.isEmpty) {
       ScaffoldMessenger.of(
         context,
@@ -207,7 +221,14 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
       if (!mounted) {
         return;
       }
-      context.go('/chat/${conversation.id}?return_to=/notifications');
+      final destination = Uri(
+        path: '/chat/${conversation.id}',
+        queryParameters: <String, String>{
+          'return_to': '/notifications',
+          'profile_id': targetProfileId,
+        },
+      ).toString();
+      context.go(destination);
     } catch (_) {
       if (!mounted) {
         return;

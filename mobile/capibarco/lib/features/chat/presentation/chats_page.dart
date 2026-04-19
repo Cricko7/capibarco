@@ -71,13 +71,12 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
                       state.counterpartNames[counterpartId]?.trim() ?? '';
                   final title = counterpartName.isNotEmpty
                       ? counterpartName
-                      : (counterpartId.isEmpty
-                            ? 'Chat with user'
-                            : 'Chat with $counterpartId');
+                      : l10n.chat;
                   final destination = Uri(
                     path: '/chat/${conversation.id}',
                     queryParameters: <String, String>{
                       'return_to': '/chats',
+                      if (counterpartId.isNotEmpty) 'profile_id': counterpartId,
                       if (counterpartName.isNotEmpty) 'title': counterpartName,
                     },
                   ).toString();
