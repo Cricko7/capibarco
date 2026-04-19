@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:capibarco/app/localization/app_localizations.dart';
 import 'package:capibarco/app/theme/app_theme.dart';
 import 'package:capibarco/core/config/environment.dart';
@@ -22,6 +24,9 @@ class _FakeChatRepository extends ChatRepositoryImpl {
         errorMapper: const ErrorMapper(),
       );
 
+  final StreamController<ChatMessageEntity> _realtimeController =
+      StreamController<ChatMessageEntity>.broadcast();
+
   @override
   Future<List<ChatMessageEntity>> listMessages(String conversationId) async {
     return <ChatMessageEntity>[
@@ -45,6 +50,22 @@ class _FakeChatRepository extends ChatRepositoryImpl {
       text: text,
       sentAt: DateTime.utc(2026, 4, 19, 9, 1),
     );
+  }
+
+  @override
+  Stream<ChatMessageEntity> watchMessages({
+    required String conversationId,
+    required String accessToken,
+  }) {
+    return _realtimeController.stream;
+  }
+
+  void emitRealtimeMessage(ChatMessageEntity message) {
+    _realtimeController.add(message);
+  }
+
+  Future<void> dispose() async {
+    await _realtimeController.close();
   }
 }
 
@@ -72,16 +93,20 @@ void main() {
     view.resetDevicePixelRatio();
   });
 
-  Future<void> pumpChatPage(WidgetTester tester, {required Size size}) async {
+  Future<void> pumpChatPage(
+    WidgetTester tester, {
+    required Size size,
+    _FakeChatRepository? repository,
+  }) async {
     final view = tester.view;
     view.physicalSize = size;
     view.devicePixelRatio = 1;
+    final chatRepository = repository ?? _FakeChatRepository();
+    addTearDown(chatRepository.dispose);
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          chatRepositoryProvider.overrideWithValue(_FakeChatRepository()),
-        ],
+        overrides: [chatRepositoryProvider.overrideWithValue(chatRepository)],
         child: MaterialApp(
           theme: AppTheme.light(),
           localizationsDelegates: const <LocalizationsDelegate<dynamic>>[
@@ -128,5 +153,28 @@ void main() {
     final composerRect = tester.getRect(composerField);
     final sendButtonRect = tester.getRect(sendButton);
     expect(composerRect.bottom, lessThan(sendButtonRect.top));
+  });
+
+  testWidgets('shows incoming realtime message without reload', (tester) async {
+    final repository = _FakeChatRepository();
+
+    await pumpChatPage(
+      tester,
+      size: const Size(390, 844),
+      repository: repository,
+    );
+
+    repository.emitRealtimeMessage(
+      ChatMessageEntity(
+        id: 'message-3',
+        senderProfileId: 'profile-2',
+        text: 'Новое realtime сообщение',
+        sentAt: DateTime.utc(2026, 4, 19, 9, 2),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.text('Новое realtime сообщение'), findsOneWidget);
   });
 }

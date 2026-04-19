@@ -4,16 +4,20 @@ import '../../../../core/error/error_mapper.dart';
 import '../../domain/entities/chat_conversation.dart';
 import '../../domain/entities/chat_message.dart';
 import '../datasources/chat_remote_data_source.dart';
+import '../api/chat_realtime_api_client.dart';
 
 class ChatRepositoryImpl {
   ChatRepositoryImpl({
     required ChatRemoteDataSource remoteDataSource,
     required ErrorMapper errorMapper,
+    ChatRealtimeApiClient? realtimeApiClient,
   }) : _remoteDataSource = remoteDataSource,
-       _errorMapper = errorMapper;
+       _errorMapper = errorMapper,
+       _realtimeApiClient = realtimeApiClient;
 
   final ChatRemoteDataSource _remoteDataSource;
   final ErrorMapper _errorMapper;
+  final ChatRealtimeApiClient? _realtimeApiClient;
   static const _uuid = Uuid();
 
   Future<ChatConversationEntity> createConversation({
@@ -99,6 +103,26 @@ class ChatRepositoryImpl {
         idempotencyKey: _uuid.v4(),
       );
       return message.toDomain();
+    } catch (error) {
+      throw _errorMapper.map(error);
+    }
+  }
+
+  Stream<ChatMessageEntity> watchMessages({
+    required String conversationId,
+    required String accessToken,
+  }) async* {
+    if (_realtimeApiClient == null) {
+      return;
+    }
+
+    try {
+      await for (final message in _realtimeApiClient.watchMessages(
+        conversationId: conversationId,
+        accessToken: accessToken,
+      )) {
+        yield message.toDomain();
+      }
     } catch (error) {
       throw _errorMapper.map(error);
     }

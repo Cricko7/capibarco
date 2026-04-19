@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -31,6 +33,7 @@ class ChatPage extends ConsumerStatefulWidget {
 class _ChatPageState extends ConsumerState<ChatPage> {
   final _messageController = TextEditingController();
   final _messagesScrollController = ScrollController();
+  StreamSubscription<ChatMessageEntity>? _messagesSubscription;
   List<ChatMessageEntity> _messages = const <ChatMessageEntity>[];
   bool _isLoading = true;
   bool _isSending = false;
@@ -39,14 +42,20 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   @override
   void initState() {
     super.initState();
-    Future<void>.microtask(_loadMessages);
+    Future<void>.microtask(_initializeChat);
   }
 
   @override
   void dispose() {
+    _messagesSubscription?.cancel();
     _messageController.dispose();
     _messagesScrollController.dispose();
     super.dispose();
+  }
+
+  Future<void> _initializeChat() async {
+    _subscribeToRealtime();
+    await _loadMessages();
   }
 
   Future<void> _loadMessages() async {
@@ -62,7 +71,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         return;
       }
       setState(() {
-        _messages = messages;
+        _messages = _mergeMessages(_messages, messages);
         _isLoading = false;
       });
       _scrollToLatest(jumpToEnd: true);
@@ -93,7 +102,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       }
       _messageController.clear();
       setState(() {
-        _messages = <ChatMessageEntity>[..._messages, message];
+        _messages = _mergeMessage(_messages, message);
         _isSending = false;
       });
       _scrollToLatest();
@@ -106,6 +115,65 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         context,
       ).showSnackBar(SnackBar(content: Text(error.toString())));
     }
+  }
+
+  void _subscribeToRealtime() {
+    _messagesSubscription?.cancel();
+    _messagesSubscription = ref
+        .read(chatRepositoryProvider)
+        .watchMessages(
+          conversationId: widget.conversationId,
+          accessToken:
+              ref.read(authControllerProvider).session?.accessToken ?? '',
+        )
+        .listen((message) {
+          if (!mounted) {
+            return;
+          }
+          setState(() {
+            _messages = _mergeMessage(_messages, message);
+          });
+          _scrollToLatest();
+        });
+  }
+
+  List<ChatMessageEntity> _mergeMessages(
+    List<ChatMessageEntity> existing,
+    List<ChatMessageEntity> incoming,
+  ) {
+    var nextMessages = existing;
+    for (final message in incoming) {
+      nextMessages = _mergeMessage(nextMessages, message);
+    }
+    return nextMessages;
+  }
+
+  List<ChatMessageEntity> _mergeMessage(
+    List<ChatMessageEntity> current,
+    ChatMessageEntity incoming,
+  ) {
+    final updated = <ChatMessageEntity>[...current];
+    final existingIndex = updated.indexWhere((item) => item.id == incoming.id);
+    if (existingIndex >= 0) {
+      updated[existingIndex] = incoming;
+    } else {
+      updated.add(incoming);
+    }
+    updated.sort(_compareMessages);
+    return updated;
+  }
+
+  int _compareMessages(ChatMessageEntity left, ChatMessageEntity right) {
+    final sentAtComparison =
+        (left.sentAt ?? DateTime.fromMillisecondsSinceEpoch(0, isUtc: true))
+            .compareTo(
+              right.sentAt ??
+                  DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+            );
+    if (sentAtComparison != 0) {
+      return sentAtComparison;
+    }
+    return left.id.compareTo(right.id);
   }
 
   void _scrollToLatest({bool jumpToEnd = false}) {

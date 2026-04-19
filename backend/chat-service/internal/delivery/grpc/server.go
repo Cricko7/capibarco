@@ -138,97 +138,143 @@ func (s *ChatServer) MarkRead(ctx context.Context, req *chatv1.MarkReadRequest) 
 
 func (s *ChatServer) Connect(stream chatv1.ChatService_ConnectServer) error {
 	ctx := stream.Context()
+	incomingFrames := make(chan *chatv1.ClientChatFrame)
+	incomingErr := make(chan error, 1)
+	go func() {
+		defer close(incomingFrames)
+		for {
+			frame, err := stream.Recv()
+			if err != nil {
+				incomingErr <- err
+				return
+			}
+			select {
+			case incomingFrames <- frame:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
 	var authedConversationID string
+	var subscription <-chan chat.Event
+	var cancelSubscription func()
+	defer func() {
+		if cancelSubscription != nil {
+			cancelSubscription()
+		}
+	}()
+
 	for {
-		frame, err := stream.Recv()
-		if err != nil {
+		select {
+		case <-ctx.Done():
+			return toStatusError(ctx.Err())
+		case err := <-incomingErr:
 			if err == io.EOF {
 				return nil
 			}
 			return toStatusError(err)
-		}
-		switch payload := frame.GetPayload().(type) {
-		case *chatv1.ClientChatFrame_Auth:
-			if payload.Auth.GetAccessToken() == "" || payload.Auth.GetConversationId() == "" {
-				if sendErr := stream.Send(errorFrame(frame.GetFrameId(), codes.Unauthenticated, "access_token and conversation_id are required", false)); sendErr != nil {
-					return sendErr
-				}
+		case event, ok := <-subscription:
+			if !ok {
+				subscription = nil
 				continue
 			}
-			if _, validateErr := s.auth.ValidateToken(ctx, payload.Auth.GetAccessToken()); validateErr != nil {
-				if sendErr := stream.Send(errorFrame(frame.GetFrameId(), codes.Unauthenticated, "access token is invalid", false)); sendErr != nil {
-					return sendErr
-				}
-				continue
-			}
-			authedConversationID = payload.Auth.GetConversationId()
-			if sendErr := stream.Send(ackFrame(frame.GetFrameId(), "")); sendErr != nil {
-				return sendErr
-			}
-		case *chatv1.ClientChatFrame_Message:
-			if err := requireConversation(authedConversationID, payload.Message.GetConversationId()); err != nil {
-				if sendErr := stream.Send(errorFrame(frame.GetFrameId(), codes.PermissionDenied, err.Error(), false)); sendErr != nil {
-					return sendErr
-				}
-				continue
-			}
-			message, sendErr := s.service.SendMessage(ctx, sendInputFromProto(payload.Message))
-			if sendErr != nil {
-				if errFrame := stream.Send(errorFrame(frame.GetFrameId(), status.Code(toStatusError(sendErr)), sendErr.Error(), true)); errFrame != nil {
-					return errFrame
-				}
-				continue
-			}
-			if err := stream.Send(ackFrame(frame.GetFrameId(), message.ID)); err != nil {
-				return err
-			}
-		case *chatv1.ClientChatFrame_ReadReceipt:
-			if err := requireConversation(authedConversationID, payload.ReadReceipt.GetConversationId()); err != nil {
-				if sendErr := stream.Send(errorFrame(frame.GetFrameId(), codes.PermissionDenied, err.Error(), false)); sendErr != nil {
-					return sendErr
-				}
-				continue
-			}
-			if _, readErr := s.service.MarkRead(ctx, appchat.MarkReadInput{
-				ConversationID:  payload.ReadReceipt.GetConversationId(),
-				ReaderProfileID: payload.ReadReceipt.GetReaderProfileId(),
-				UpToMessageID:   payload.ReadReceipt.GetUpToMessageId(),
-			}); readErr != nil {
-				if errFrame := stream.Send(errorFrame(frame.GetFrameId(), status.Code(toStatusError(readErr)), readErr.Error(), true)); errFrame != nil {
-					return errFrame
-				}
-				continue
-			}
-			if err := stream.Send(ackFrame(frame.GetFrameId(), "")); err != nil {
-				return err
-			}
-		case *chatv1.ClientChatFrame_Typing:
-			if err := requireConversation(authedConversationID, payload.Typing.GetConversationId()); err != nil {
-				if sendErr := stream.Send(errorFrame(frame.GetFrameId(), codes.PermissionDenied, err.Error(), false)); sendErr != nil {
-					return sendErr
-				}
-				continue
-			}
-			event := chat.Event{
-				ID:           frame.GetFrameId(),
-				Type:         chat.EventTypeParticipantTyping,
-				OccurredAt:   time.Now().UTC(),
-				PartitionKey: payload.Typing.GetConversationId(),
-				Typing: &chat.Typing{
-					ConversationID: payload.Typing.GetConversationId(),
-					ProfileID:      payload.Typing.GetProfileId(),
-					Typing:         payload.Typing.GetTyping(),
-				},
-			}
-			if err := s.hub.Publish(ctx, event); err != nil {
+			if err := stream.Send(eventFrame(event)); err != nil {
 				return toStatusError(err)
 			}
-			if err := stream.Send(ackFrame(frame.GetFrameId(), "")); err != nil {
-				return err
+		case frame, ok := <-incomingFrames:
+			if !ok {
+				return nil
 			}
-		default:
-			if err := stream.Send(errorFrame(frame.GetFrameId(), codes.InvalidArgument, "unsupported frame payload", false)); err != nil {
-				return err
+			switch payload := frame.GetPayload().(type) {
+			case *chatv1.ClientChatFrame_Auth:
+				if payload.Auth.GetAccessToken() == "" || payload.Auth.GetConversationId() == "" {
+					if sendErr := stream.Send(errorFrame(frame.GetFrameId(), codes.Unauthenticated, "access_token and conversation_id are required", false)); sendErr != nil {
+						return sendErr
+					}
+					continue
+				}
+				if _, validateErr := s.auth.ValidateToken(ctx, payload.Auth.GetAccessToken()); validateErr != nil {
+					if sendErr := stream.Send(errorFrame(frame.GetFrameId(), codes.Unauthenticated, "access token is invalid", false)); sendErr != nil {
+						return sendErr
+					}
+					continue
+				}
+				authedConversationID = payload.Auth.GetConversationId()
+				if cancelSubscription != nil {
+					cancelSubscription()
+				}
+				var events <-chan chat.Event
+				events, cancelSubscription = s.hub.Subscribe(authedConversationID)
+				subscription = events
+				if sendErr := stream.Send(ackFrame(frame.GetFrameId(), "")); sendErr != nil {
+					return sendErr
+				}
+			case *chatv1.ClientChatFrame_Message:
+				if err := requireConversation(authedConversationID, payload.Message.GetConversationId()); err != nil {
+					if sendErr := stream.Send(errorFrame(frame.GetFrameId(), codes.PermissionDenied, err.Error(), false)); sendErr != nil {
+						return sendErr
+					}
+					continue
+				}
+				message, sendErr := s.service.SendMessage(ctx, sendInputFromProto(payload.Message))
+				if sendErr != nil {
+					if errFrame := stream.Send(errorFrame(frame.GetFrameId(), status.Code(toStatusError(sendErr)), sendErr.Error(), true)); errFrame != nil {
+						return errFrame
+					}
+					continue
+				}
+				if err := stream.Send(ackFrame(frame.GetFrameId(), message.ID)); err != nil {
+					return err
+				}
+			case *chatv1.ClientChatFrame_ReadReceipt:
+				if err := requireConversation(authedConversationID, payload.ReadReceipt.GetConversationId()); err != nil {
+					if sendErr := stream.Send(errorFrame(frame.GetFrameId(), codes.PermissionDenied, err.Error(), false)); sendErr != nil {
+						return sendErr
+					}
+					continue
+				}
+				if _, readErr := s.service.MarkRead(ctx, appchat.MarkReadInput{
+					ConversationID:  payload.ReadReceipt.GetConversationId(),
+					ReaderProfileID: payload.ReadReceipt.GetReaderProfileId(),
+					UpToMessageID:   payload.ReadReceipt.GetUpToMessageId(),
+				}); readErr != nil {
+					if errFrame := stream.Send(errorFrame(frame.GetFrameId(), status.Code(toStatusError(readErr)), readErr.Error(), true)); errFrame != nil {
+						return errFrame
+					}
+					continue
+				}
+				if err := stream.Send(ackFrame(frame.GetFrameId(), "")); err != nil {
+					return err
+				}
+			case *chatv1.ClientChatFrame_Typing:
+				if err := requireConversation(authedConversationID, payload.Typing.GetConversationId()); err != nil {
+					if sendErr := stream.Send(errorFrame(frame.GetFrameId(), codes.PermissionDenied, err.Error(), false)); sendErr != nil {
+						return sendErr
+					}
+					continue
+				}
+				event := chat.Event{
+					ID:           frame.GetFrameId(),
+					Type:         chat.EventTypeParticipantTyping,
+					OccurredAt:   time.Now().UTC(),
+					PartitionKey: payload.Typing.GetConversationId(),
+					Typing: &chat.Typing{
+						ConversationID: payload.Typing.GetConversationId(),
+						ProfileID:      payload.Typing.GetProfileId(),
+						Typing:         payload.Typing.GetTyping(),
+					},
+				}
+				if err := s.hub.Publish(ctx, event); err != nil {
+					return toStatusError(err)
+				}
+				if err := stream.Send(ackFrame(frame.GetFrameId(), "")); err != nil {
+					return err
+				}
+			default:
+				if err := stream.Send(errorFrame(frame.GetFrameId(), codes.InvalidArgument, "unsupported frame payload", false)); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -293,6 +339,15 @@ func ackFrame(frameID string, messageID string) *chatv1.ServerChatFrame {
 	}
 }
 
+func eventFrame(event chat.Event) *chatv1.ServerChatFrame {
+	return &chatv1.ServerChatFrame{
+		FrameId:      event.ID,
+		Type:         chatFrameType(event),
+		ServerSentAt: timestamppb.Now(),
+		Payload:      &chatv1.ServerChatFrame_Event{Event: eventToProto(event)},
+	}
+}
+
 func errorFrame(frameID string, code codes.Code, message string, retryable bool) *chatv1.ServerChatFrame {
 	return &chatv1.ServerChatFrame{
 		FrameId:      frameID,
@@ -303,6 +358,19 @@ func errorFrame(frameID string, code codes.Code, message string, retryable bool)
 			Message:   message,
 			Retryable: retryable,
 		}},
+	}
+}
+
+func chatFrameType(event chat.Event) chatv1.ChatFrameType {
+	switch event.Type {
+	case chat.EventTypeMessageSent:
+		return chatv1.ChatFrameType_CHAT_FRAME_TYPE_MESSAGE
+	case chat.EventTypeParticipantTyping:
+		return chatv1.ChatFrameType_CHAT_FRAME_TYPE_TYPING
+	case chat.EventTypeMessageRead:
+		return chatv1.ChatFrameType_CHAT_FRAME_TYPE_READ_RECEIPT
+	default:
+		return chatv1.ChatFrameType_CHAT_FRAME_TYPE_UNSPECIFIED
 	}
 }
 
