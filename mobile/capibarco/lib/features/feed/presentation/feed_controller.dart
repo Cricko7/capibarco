@@ -13,6 +13,7 @@ import '../domain/entities/feed_models.dart';
 class FeedState {
   const FeedState({
     this.cards = const <FeedCardEntity>[],
+    this.dismissedAnimalIds = const <String>{},
     this.nextPageToken = '',
     this.feedSessionId = '',
     this.isLoading = false,
@@ -22,6 +23,7 @@ class FeedState {
   });
 
   final List<FeedCardEntity> cards;
+  final Set<String> dismissedAnimalIds;
   final String nextPageToken;
   final String feedSessionId;
   final bool isLoading;
@@ -31,6 +33,7 @@ class FeedState {
 
   FeedState copyWith({
     List<FeedCardEntity>? cards,
+    Set<String>? dismissedAnimalIds,
     String? nextPageToken,
     String? feedSessionId,
     bool? isLoading,
@@ -41,6 +44,7 @@ class FeedState {
   }) {
     return FeedState(
       cards: cards ?? this.cards,
+      dismissedAnimalIds: dismissedAnimalIds ?? this.dismissedAnimalIds,
       nextPageToken: nextPageToken ?? this.nextPageToken,
       feedSessionId: feedSessionId ?? this.feedSessionId,
       isLoading: isLoading ?? this.isLoading,
@@ -84,7 +88,8 @@ class FeedController extends Notifier<FeedState> {
     try {
       final page = await _repository.getFeed();
       state = FeedState(
-        cards: _filterCards(page.cards),
+        cards: _filterDismissedCards(_filterCards(page.cards)),
+        dismissedAnimalIds: state.dismissedAnimalIds,
         nextPageToken: page.nextPageToken,
         feedSessionId: page.feedSessionId,
         isStale: page.isStale,
@@ -102,7 +107,10 @@ class FeedController extends Notifier<FeedState> {
     state = state.copyWith(isLoadingMore: true, clearError: true);
     try {
       final page = await _repository.getFeed(pageToken: state.nextPageToken);
-      final mergedCards = _mergeCards(state.cards, _filterCards(page.cards));
+      final mergedCards = _mergeCards(
+        state.cards,
+        _filterDismissedCards(_filterCards(page.cards)),
+      );
       state = state.copyWith(
         cards: mergedCards,
         nextPageToken: page.nextPageToken,
@@ -127,7 +135,10 @@ class FeedController extends Notifier<FeedState> {
     try {
       final page = await _repository.getFeed();
       state = state.copyWith(
-        cards: _mergeCards(_filterCards(page.cards), state.cards),
+        cards: _mergeCards(
+          _filterDismissedCards(_filterCards(page.cards)),
+          state.cards,
+        ),
         nextPageToken: page.nextPageToken,
         feedSessionId: page.feedSessionId.isEmpty
             ? state.feedSessionId
@@ -164,7 +175,14 @@ class FeedController extends Notifier<FeedState> {
     );
 
     final updated = state.cards.where((item) => item.id != card.id).toList();
-    state = state.copyWith(cards: updated);
+    final dismissedAnimalIds = <String>{...state.dismissedAnimalIds};
+    if (card.animalId.isNotEmpty) {
+      dismissedAnimalIds.add(card.animalId);
+    }
+    state = state.copyWith(
+      cards: updated,
+      dismissedAnimalIds: dismissedAnimalIds,
+    );
     if (updated.length < 3 && state.nextPageToken.isNotEmpty) {
       await loadMore();
     }
@@ -198,5 +216,19 @@ class FeedController extends Notifier<FeedState> {
     }
 
     return merged;
+  }
+
+  List<FeedCardEntity> _filterDismissedCards(List<FeedCardEntity> cards) {
+    if (state.dismissedAnimalIds.isEmpty) {
+      return cards;
+    }
+
+    return cards
+        .where(
+          (card) =>
+              card.animalId.isEmpty ||
+              !state.dismissedAnimalIds.contains(card.animalId),
+        )
+        .toList();
   }
 }
