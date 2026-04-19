@@ -39,13 +39,23 @@ class DonationIntentDto {
           donation['target_type'] as String? ??
           'DONATION_TARGET_TYPE_UNSPECIFIED',
       currencyCode: amount['currency_code'] as String? ?? 'RUB',
-      units: (amount['units'] as num?)?.toInt() ?? 0,
-      nanos: (amount['nanos'] as num?)?.toInt() ?? 0,
+      units: _parseInt(amount['units']),
+      nanos: _parseInt(amount['nanos']),
       status: donation['status'] as String? ?? 'PAYMENT_STATUS_PENDING',
       provider: donation['provider'] as String? ?? 'mock',
       paymentUrl: json['payment_url'] as String? ?? '',
       clientSecret: json['client_secret'] as String? ?? '',
     );
+  }
+
+  static int _parseInt(Object? value) {
+    if (value is num) {
+      return value.toInt();
+    }
+    if (value is String) {
+      return int.tryParse(value) ?? double.tryParse(value)?.toInt() ?? 0;
+    }
+    return 0;
   }
 
   DonationIntentEntity toDomain() {

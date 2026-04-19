@@ -2,6 +2,7 @@ import 'package:capibarco/features/feed/data/dtos/feed_dto.dart';
 import 'package:capibarco/features/notifications/data/dtos/notification_dto.dart';
 import 'package:capibarco/features/profile/data/dtos/profile_animal_card_dto.dart';
 import 'package:capibarco/features/animals/data/dtos/animal_editor_dto.dart';
+import 'package:capibarco/features/billing/data/dtos/donation_intent_dto.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -90,4 +91,30 @@ void main() {
     expect(dto.vaccinated, isTrue);
     expect(dto.sterilized, isFalse);
   });
+
+  test(
+    'DonationIntentDto accepts stringified money fields from billing JSON',
+    () {
+      final dto = DonationIntentDto.fromJson(<String, dynamic>{
+        'donation': <String, dynamic>{
+          'donation_id': 'donation-1',
+          'target_id': 'animal-1',
+          'target_type': 'DONATION_TARGET_TYPE_ANIMAL',
+          'status': 'PAYMENT_STATUS_PENDING',
+          'provider': 'mock',
+          'amount': <String, dynamic>{
+            'currency_code': 'RUB',
+            'units': '500',
+            'nanos': '0',
+          },
+        },
+        'payment_url': 'https://example.test/pay',
+        'client_secret': 'secret-1',
+      });
+
+      expect(dto.units, 500);
+      expect(dto.nanos, 0);
+      expect(dto.toDomain().amountLabel, '500 RUB');
+    },
+  );
 }
