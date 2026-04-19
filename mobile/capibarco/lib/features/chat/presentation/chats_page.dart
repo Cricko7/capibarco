@@ -63,38 +63,48 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
                   icon: Icons.forum_outlined,
                 )
               else
-                ...state.conversations.map(
-                  (conversation) {
-                    final counterpartId = conversation.counterpartProfileId(
-                      currentProfileId,
-                    );
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: SoftCard(
-                        child: ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: const CircleAvatar(
-                            child: Icon(Icons.chat_bubble_outline_rounded),
-                          ),
-                          title: Text(
-                            counterpartId.isEmpty
-                                ? 'Chat with user'
-                                : 'Chat with $counterpartId',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          subtitle: Text(
-                            'Ready to message',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          trailing: const Icon(Icons.chevron_right_rounded),
-                          onTap: () => context.go('/chat/${conversation.id}'),
+                ...state.conversations.map((conversation) {
+                  final counterpartId = conversation.counterpartProfileId(
+                    currentProfileId,
+                  );
+                  final counterpartName =
+                      state.counterpartNames[counterpartId]?.trim() ?? '';
+                  final title = counterpartName.isNotEmpty
+                      ? counterpartName
+                      : (counterpartId.isEmpty
+                            ? 'Chat with user'
+                            : 'Chat with $counterpartId');
+                  final destination = Uri(
+                    path: '/chat/${conversation.id}',
+                    queryParameters: <String, String>{
+                      'return_to': '/chats',
+                      if (counterpartName.isNotEmpty) 'title': counterpartName,
+                    },
+                  ).toString();
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: SoftCard(
+                      child: ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const CircleAvatar(
+                          child: Icon(Icons.chat_bubble_outline_rounded),
                         ),
+                        title: Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Text(
+                          'Ready to message',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () => context.go(destination),
                       ),
-                    );
-                  },
-                ),
+                    ),
+                  );
+                }),
             ],
           ),
         ),

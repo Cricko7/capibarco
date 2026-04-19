@@ -2,11 +2,13 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
 import '../dtos/chat_message_dto.dart';
 import 'chat_realtime_socket.dart';
 import 'chat_realtime_socket_stub.dart'
+    if (dart.library.html) 'chat_realtime_socket_web.dart'
     if (dart.library.io) 'chat_realtime_socket_io.dart';
 
 class ChatRealtimeApiClient {
@@ -68,7 +70,7 @@ class ChatRealtimeApiClient {
 
       try {
         final openedSocket = await openChatRealtimeSocket(
-          _buildSocketUri(),
+          _buildSocketUri(accessToken),
           headers: <String, dynamic>{'Authorization': 'Bearer $accessToken'},
         );
         if (isDisposed) {
@@ -129,7 +131,7 @@ class ChatRealtimeApiClient {
     return controller.stream;
   }
 
-  Uri _buildSocketUri() {
+  Uri _buildSocketUri(String accessToken) {
     final baseUri = Uri.parse(_gatewayBaseUrl);
     final normalizedPath = baseUri.path.isEmpty || baseUri.path == '/'
         ? '/ws/chat'
@@ -139,14 +141,22 @@ class ChatRealtimeApiClient {
       'http' => 'ws',
       _ => baseUri.scheme,
     };
+    final queryParameters = <String, String>{
+      ...baseUri.queryParameters,
+      if (accessToken.trim().isNotEmpty) 'access_token': accessToken,
+    };
 
     return baseUri.replace(
       scheme: scheme,
       path: normalizedPath,
-      queryParameters: null,
+      queryParameters: queryParameters.isEmpty ? null : queryParameters,
       fragment: null,
     );
   }
+
+  @visibleForTesting
+  Uri buildSocketUriForTesting(String accessToken) =>
+      _buildSocketUri(accessToken);
 
   Map<String, dynamic> _authFrame({
     required String accessToken,
