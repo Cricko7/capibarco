@@ -106,6 +106,51 @@ func TestServiceListMessagesReturnsNotFoundForMissingConversation(t *testing.T) 
 	}
 }
 
+func TestServiceSendMessageAddsRecipientMetadataForNotifications(t *testing.T) {
+	ctx := context.Background()
+	clock := fixedClock{now: time.Date(2026, 4, 19, 12, 0, 0, 0, time.UTC)}
+	repo := newMemoryRepo()
+	repo.conversations["conversation-1"] = chat.Conversation{
+		ID:               "conversation-1",
+		AdopterProfileID: "adopter",
+		OwnerProfileID:   "owner",
+		Status:           chat.ConversationStatusActive,
+	}
+	ids := fixedIDs{"message-1", "event-1"}
+	service := appchat.NewService(repo, repo, repo, repo, clock, &ids)
+
+	message, err := service.SendMessage(ctx, appchat.SendMessageInput{
+		ConversationID:  "conversation-1",
+		SenderProfileID: "adopter",
+		Type:            chat.MessageTypeText,
+		Text:            "hello",
+		Metadata: map[string]string{
+			"custom": "value",
+		},
+		ClientMessageID: "client-1",
+		IdempotencyKey:  "idem-message",
+	})
+	if err != nil {
+		t.Fatalf("SendMessage() error = %v", err)
+	}
+
+	if got := message.Metadata["recipient_profile_id"]; got != "owner" {
+		t.Fatalf("message.Metadata[recipient_profile_id] = %q, want %q", got, "owner")
+	}
+	if got := message.Metadata["custom"]; got != "value" {
+		t.Fatalf("message.Metadata[custom] = %q, want %q", got, "value")
+	}
+	if len(repo.publishedEvents) != 1 {
+		t.Fatalf("published events = %d, want 1", len(repo.publishedEvents))
+	}
+	if repo.publishedEvents[0].Message == nil {
+		t.Fatalf("published event message = nil")
+	}
+	if got := repo.publishedEvents[0].Message.Metadata["recipient_profile_id"]; got != "owner" {
+		t.Fatalf("published event recipient_profile_id = %q, want %q", got, "owner")
+	}
+}
+
 type fixedClock struct {
 	now time.Time
 }
@@ -131,6 +176,7 @@ type memoryRepo struct {
 	messages             map[string]chat.Message
 	messagesByKey        map[string]chat.Message
 	createdConversations int
+	publishedEvents      []chat.Event
 }
 
 func newMemoryRepo() *memoryRepo {
@@ -196,6 +242,7 @@ func (r *memoryRepo) MarkRead(_ context.Context, receipt chat.ReadReceipt) (chat
 	return receipt, nil
 }
 
-func (r *memoryRepo) Publish(_ context.Context, _ chat.Event) error {
+func (r *memoryRepo) Publish(_ context.Context, event chat.Event) error {
+	r.publishedEvents = append(r.publishedEvents, event)
 	return nil
 }

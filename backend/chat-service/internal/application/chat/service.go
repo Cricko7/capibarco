@@ -154,6 +154,13 @@ func (s *Service) SendMessage(ctx context.Context, input SendMessageInput) (doma
 	if err != nil {
 		return domain.Message{}, fmt.Errorf("get conversation for send: %w", err)
 	}
+	metadata := make(map[string]string, len(input.Metadata)+1)
+	for key, value := range input.Metadata {
+		metadata[key] = value
+	}
+	if recipientProfileID := conversation.CounterpartProfileID(input.SenderProfileID); recipientProfileID != "" {
+		metadata["recipient_profile_id"] = recipientProfileID
+	}
 	message, err := domain.NewMessage(domain.SendMessageCommand{
 		ID:              s.ids.NewID(),
 		Conversation:    conversation,
@@ -161,7 +168,7 @@ func (s *Service) SendMessage(ctx context.Context, input SendMessageInput) (doma
 		Type:            input.Type,
 		Text:            input.Text,
 		Attachments:     input.Attachments,
-		Metadata:        input.Metadata,
+		Metadata:        metadata,
 		ClientMessageID: input.ClientMessageID,
 		IdempotencyKey:  input.IdempotencyKey,
 		Now:             s.clock.Now(),

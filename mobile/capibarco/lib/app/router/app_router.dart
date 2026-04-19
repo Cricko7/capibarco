@@ -8,6 +8,7 @@ import '../../features/auth/presentation/auth_state.dart';
 import '../../features/auth/presentation/login_page.dart';
 import '../../features/auth/presentation/register_page.dart';
 import '../../features/auth/presentation/splash_page.dart';
+import '../../features/chat/presentation/chats_controller.dart';
 import '../../features/chat/presentation/chat_page.dart';
 import '../../features/chat/presentation/chats_page.dart';
 import '../../features/discovery/presentation/discovery_page.dart';
@@ -141,18 +142,50 @@ class AuthRouterRefreshNotifier extends ChangeNotifier {
   void ping() => notifyListeners();
 }
 
-class MainShell extends StatelessWidget {
+const _chatsBranchIndex = 3;
+
+class MainShell extends ConsumerStatefulWidget {
   const MainShell({required this.navigationShell, super.key});
 
   final StatefulNavigationShell navigationShell;
 
   @override
+  ConsumerState<MainShell> createState() => _MainShellState();
+}
+
+class _MainShellState extends ConsumerState<MainShell> {
+  @override
+  void initState() {
+    super.initState();
+    _refreshChatsIfNeeded();
+  }
+
+  @override
+  void didUpdateWidget(covariant MainShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.navigationShell.currentIndex !=
+        widget.navigationShell.currentIndex) {
+      _refreshChatsIfNeeded();
+    }
+  }
+
+  void _refreshChatsIfNeeded() {
+    if (widget.navigationShell.currentIndex != _chatsBranchIndex) {
+      return;
+    }
+    Future<void>.microtask(
+      () => ref.read(chatsControllerProvider.notifier).load(),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: navigationShell,
+      body: widget.navigationShell,
       bottomNavigationBar: NavigationBar(
-        selectedIndex: navigationShell.currentIndex,
-        onDestinationSelected: (index) => navigationShell.goBranch(index),
+        selectedIndex: widget.navigationShell.currentIndex,
+        onDestinationSelected: (index) =>
+            widget.navigationShell.goBranch(index),
         destinations: const <NavigationDestination>[
           NavigationDestination(icon: Icon(Icons.home_rounded), label: 'Feed'),
           NavigationDestination(

@@ -183,6 +183,20 @@ func (c Conversation) HasParticipant(profileID string) bool {
 	return profileID != "" && (profileID == c.AdopterProfileID || profileID == c.OwnerProfileID)
 }
 
+// CounterpartProfileID returns the other participant in the conversation.
+func (c Conversation) CounterpartProfileID(profileID string) string {
+	if profileID == "" {
+		return ""
+	}
+	if profileID == c.AdopterProfileID {
+		return c.OwnerProfileID
+	}
+	if profileID == c.OwnerProfileID {
+		return c.AdopterProfileID
+	}
+	return ""
+}
+
 // UpdateText edits a message text.
 func (m Message) UpdateText(text string, now time.Time) (Message, error) {
 	if strings.TrimSpace(text) == "" {
