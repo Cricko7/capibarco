@@ -23,6 +23,17 @@ class ChatRepositoryImpl {
     String matchId = '',
   }) async {
     try {
+      try {
+        final existingConversation = await _findConversationByTarget(
+          targetProfileId,
+        );
+        if (existingConversation != null) {
+          return existingConversation;
+        }
+      } catch (_) {
+        // If lookup fails we still try to create a conversation.
+      }
+
       final conversation = await _remoteDataSource.createConversation(
         targetProfileId: targetProfileId,
         idempotencyKey: idempotencyKey,
@@ -47,10 +58,33 @@ class ChatRepositoryImpl {
   Future<List<ChatConversationEntity>> listConversations() async {
     try {
       final conversations = await _remoteDataSource.listConversations();
-      return conversations.map((item) => item.toDomain()).toList();
+      final unique = <String, ChatConversationEntity>{};
+      for (final conversation in conversations) {
+        final ids = <String>[
+          conversation.adopterProfileId,
+          conversation.ownerProfileId,
+        ]..sort();
+        final pairKey = ids.join(':');
+        unique.putIfAbsent(pairKey, () => conversation.toDomain());
+      }
+      return unique.values.toList();
     } catch (error) {
       throw _errorMapper.map(error);
     }
+  }
+
+  Future<ChatConversationEntity?> _findConversationByTarget(
+    String targetProfileId,
+  ) async {
+    final conversations = await _remoteDataSource.listConversations();
+    final existing = conversations.where((conversation) {
+      return conversation.adopterProfileId == targetProfileId ||
+          conversation.ownerProfileId == targetProfileId;
+    });
+    if (existing.isEmpty) {
+      return null;
+    }
+    return existing.first.toDomain();
   }
 
   Future<ChatMessageEntity> sendMessage({

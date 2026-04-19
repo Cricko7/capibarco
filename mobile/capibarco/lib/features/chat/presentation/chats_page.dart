@@ -7,6 +7,7 @@ import '../../../shared/presentation/page_shell.dart';
 import '../../../shared/presentation/section_header.dart';
 import '../../../shared/presentation/soft_card.dart';
 import '../../../shared/presentation/status_view.dart';
+import '../../auth/presentation/auth_controller.dart';
 import 'chats_controller.dart';
 
 class ChatsPage extends ConsumerStatefulWidget {
@@ -29,6 +30,8 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final state = ref.watch(chatsControllerProvider);
+    final currentProfileId =
+        ref.watch(authControllerProvider).session?.user.id ?? '';
 
     return Scaffold(
       body: PageShell(
@@ -61,29 +64,36 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
                 )
               else
                 ...state.conversations.map(
-                  (conversation) => Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: SoftCard(
-                      child: ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: const CircleAvatar(
-                          child: Icon(Icons.chat_bubble_outline_rounded),
+                  (conversation) {
+                    final counterpartId = conversation.counterpartProfileId(
+                      currentProfileId,
+                    );
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: SoftCard(
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const CircleAvatar(
+                            child: Icon(Icons.chat_bubble_outline_rounded),
+                          ),
+                          title: Text(
+                            counterpartId.isEmpty
+                                ? 'Chat with user'
+                                : 'Chat with $counterpartId',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          subtitle: Text(
+                            'Ready to message',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          trailing: const Icon(Icons.chevron_right_rounded),
+                          onTap: () => context.go('/chat/${conversation.id}'),
                         ),
-                        title: Text(
-                          'Adoption chat',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        subtitle: Text(
-                          'Ready to message',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        trailing: const Icon(Icons.chevron_right_rounded),
-                        onTap: () => context.go('/chat/${conversation.id}'),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 ),
             ],
           ),
