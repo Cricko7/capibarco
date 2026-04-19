@@ -2,6 +2,7 @@ package feed_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	feedv1 "github.com/petmatch/petmatch/gen/go/petmatch/feed/v1"
 	"github.com/petmatch/petmatch/internal/adapters/memory"
 	"github.com/petmatch/petmatch/internal/feed"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -82,7 +84,7 @@ func TestGetFeedFiltersRanksAndPublishesTelemetry(t *testing.T) {
 		t.Fatalf("served_at = %s, want %s", got, now)
 	}
 
-	assertStrings(t, publisher.Topics(), []string{"feed.filters_applied", "feed.card_served", "feed.card_served"})
+	waitForTopics(t, publisher, []string{"feed.filters_applied", "feed.card_served", "feed.card_served"})
 	filtersEvent := publisher.Events()[0].(*feedv1.FeedFiltersAppliedEvent)
 	if filtersEvent.PaidFiltersUsed {
 		t.Fatal("paid filters were reported as used without entitlement")
@@ -112,6 +114,75 @@ func TestGetFeedExcludesCurrentActorsOwnAnimals(t *testing.T) {
 	}
 
 	assertStrings(t, feedAnimalIDs(resp.Cards), []string{"other-animal"})
+}
+
+func TestGetFeedReturnsCardsWhenTelemetryPublishFails(t *testing.T) {
+	ctx := context.Background()
+	store := memory.NewStore([]feed.Candidate{
+		testCandidate("animal-1", false, 0.80),
+	})
+	service := feed.NewService(feed.Dependencies{
+		Store:       store,
+		Publisher:   failingPublisher{err: errors.New("kafka unavailable")},
+		Clock:       func() time.Time { return time.Date(2026, 4, 19, 9, 0, 0, 0, time.UTC) },
+		IDGenerator: sequenceIDs("session-1", "card-1", "event-1"),
+	})
+
+	resp, err := service.GetFeed(ctx, &feedv1.GetFeedRequest{
+		Principal: &commonv1.Principal{ActorId: "user-1"},
+		Surface:   feedv1.FeedSurface_FEED_SURFACE_MAIN,
+		Page:      &commonv1.PageRequest{PageSize: 10},
+	})
+	if err != nil {
+		t.Fatalf("GetFeed returned error: %v", err)
+	}
+
+	assertStrings(t, feedAnimalIDs(resp.Cards), []string{"animal-1"})
+}
+
+func TestGetFeedDoesNotWaitForTelemetryPublish(t *testing.T) {
+	ctx := context.Background()
+	publisher := newBlockingPublisher()
+	store := memory.NewStore([]feed.Candidate{
+		testCandidate("animal-1", false, 0.80),
+	})
+	service := feed.NewService(feed.Dependencies{
+		Store:       store,
+		Publisher:   publisher,
+		Clock:       func() time.Time { return time.Date(2026, 4, 19, 9, 0, 0, 0, time.UTC) },
+		IDGenerator: sequenceIDs("session-1", "card-1", "event-1"),
+	})
+
+	type result struct {
+		resp *feedv1.GetFeedResponse
+		err  error
+	}
+	done := make(chan result, 1)
+	go func() {
+		resp, err := service.GetFeed(ctx, &feedv1.GetFeedRequest{
+			Principal: &commonv1.Principal{ActorId: "user-1"},
+			Surface:   feedv1.FeedSurface_FEED_SURFACE_MAIN,
+			Page:      &commonv1.PageRequest{PageSize: 10},
+		})
+		done <- result{resp: resp, err: err}
+	}()
+
+	select {
+	case got := <-done:
+		if got.err != nil {
+			t.Fatalf("GetFeed returned error: %v", got.err)
+		}
+		assertStrings(t, feedAnimalIDs(got.resp.Cards), []string{"animal-1"})
+	case <-time.After(100 * time.Millisecond):
+		publisher.Release()
+		got := <-done
+		if got.err != nil {
+			t.Fatalf("GetFeed returned error after blocking: %v", got.err)
+		}
+		t.Fatal("GetFeed waited for telemetry publisher")
+	}
+
+	publisher.Release()
 }
 
 func TestRecordCardOpenIsIdempotent(t *testing.T) {
@@ -240,6 +311,20 @@ func assertStrings(t *testing.T, got []string, want []string) {
 	}
 }
 
+func waitForTopics(t *testing.T, publisher *memory.Publisher, want []string) {
+	t.Helper()
+	deadline := time.Now().Add(250 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		got := publisher.Topics()
+		if len(got) == len(want) {
+			assertStrings(t, got, want)
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	assertStrings(t, publisher.Topics(), want)
+}
+
 func sequenceIDs(ids ...string) func() string {
 	next := 0
 	return func() string {
@@ -249,5 +334,38 @@ func sequenceIDs(ids ...string) func() string {
 		id := ids[next]
 		next++
 		return id
+	}
+}
+
+type failingPublisher struct {
+	err error
+}
+
+func (p failingPublisher) Publish(context.Context, string, proto.Message) error {
+	return p.err
+}
+
+type blockingPublisher struct {
+	release chan struct{}
+}
+
+func newBlockingPublisher() *blockingPublisher {
+	return &blockingPublisher{release: make(chan struct{})}
+}
+
+func (p *blockingPublisher) Publish(ctx context.Context, _ string, _ proto.Message) error {
+	select {
+	case <-p.release:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (p *blockingPublisher) Release() {
+	select {
+	case <-p.release:
+	default:
+		close(p.release)
 	}
 }

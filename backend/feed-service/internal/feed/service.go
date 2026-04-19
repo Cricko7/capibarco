@@ -212,16 +212,7 @@ func (s *Service) GetFeed(ctx context.Context, req *feedv1.GetFeedRequest) (*fee
 		return nil, status.Errorf(codes.Internal, "save served cards: %v", err)
 	}
 
-	if req.Filter != nil {
-		if err := s.publishFiltersApplied(ctx, req, paidFiltersUsed, now); err != nil {
-			return nil, err
-		}
-	}
-	for _, card := range cards {
-		if err := s.publishCardServed(ctx, req, card, now); err != nil {
-			return nil, err
-		}
-	}
+	s.publishGetFeedTelemetry(ctx, req, cards, paidFiltersUsed, now)
 
 	response := &feedv1.GetFeedResponse{
 		Cards:         cards,
@@ -493,6 +484,39 @@ func (s *Service) publishFiltersApplied(ctx context.Context, req *feedv1.GetFeed
 		return status.Errorf(codes.Internal, "publish filters applied: %v", err)
 	}
 	return nil
+}
+
+func (s *Service) publishGetFeedTelemetry(ctx context.Context, req *feedv1.GetFeedRequest, cards []*feedv1.FeedCard, paidFiltersUsed bool, occurredAt time.Time) {
+	if req.Filter != nil {
+		event := &feedv1.FeedFiltersAppliedEvent{
+			Envelope:        s.envelope(topicFiltersApplied, occurredAt, actorID(req.Principal), ""),
+			ActorId:         optionalActorID(req.Principal),
+			Filter:          proto.Clone(req.Filter).(*feedv1.FeedFilter),
+			PaidFiltersUsed: paidFiltersUsed,
+		}
+		s.publishTelemetryAsync(ctx, topicFiltersApplied, event)
+	}
+	for _, card := range cards {
+		event := &feedv1.FeedCardServedEvent{
+			Envelope:      s.envelope(topicCardServed, occurredAt, card.FeedSessionId, ""),
+			FeedCardId:    card.FeedCardId,
+			FeedSessionId: card.FeedSessionId,
+			AnimalId:      card.Animal.AnimalId,
+			ActorId:       optionalActorID(req.Principal),
+			Boosted:       card.Boosted,
+			Surface:       req.Surface,
+		}
+		s.publishTelemetryAsync(ctx, topicCardServed, event)
+	}
+}
+
+func (s *Service) publishTelemetryAsync(ctx context.Context, topic string, event proto.Message) {
+	event = proto.Clone(event)
+	go func() {
+		publishCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Second)
+		defer cancel()
+		_ = s.publisher.Publish(publishCtx, topic, event)
+	}()
 }
 
 func (s *Service) publishCardServed(ctx context.Context, req *feedv1.GetFeedRequest, card *feedv1.FeedCard, occurredAt time.Time) error {
