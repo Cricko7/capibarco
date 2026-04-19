@@ -25,6 +25,20 @@ class ChatApiClient {
     return ChatConversationDto.fromJson(response);
   }
 
+  Future<List<ChatConversationDto>> listConversations() async {
+    final response = await _client.getMap(
+      '/chat/conversations',
+      queryParameters: const <String, dynamic>{'page_size': 50},
+    );
+    final items =
+        response['conversations'] as List<dynamic>? ?? const <dynamic>[];
+    return items
+        .map(
+          (item) => ChatConversationDto.fromJson(item as Map<String, dynamic>),
+        )
+        .toList();
+  }
+
   Future<List<ChatMessageDto>> listMessages(String conversationId) async {
     final response = await _client.getMap(
       '/chat/conversations/$conversationId/messages',

@@ -8,6 +8,7 @@ class NotificationItemDto {
     required this.type,
     required this.status,
     required this.createdAt,
+    required this.data,
     required this.readAt,
   });
 
@@ -17,19 +18,25 @@ class NotificationItemDto {
   final String type;
   final String status;
   final DateTime createdAt;
+  final Map<String, String> data;
   final DateTime? readAt;
 
   factory NotificationItemDto.fromJson(Map<String, dynamic> json) {
     return NotificationItemDto(
-      id: _stringValue(json['notification_id']),
+      id: _stringValue(_field(json, 'notification_id', 'notificationId')),
       title: _stringValue(json['title']),
       body: _stringValue(json['body']),
       type: _notificationTypeValue(json['type']),
       status: _notificationStatusValue(json['status']),
+      data: _stringMap(json['data']),
       createdAt:
-          DateTime.tryParse(_stringValue(json['created_at']))?.toUtc() ??
+          DateTime.tryParse(
+            _stringValue(_field(json, 'created_at', 'createdAt')),
+          )?.toUtc() ??
           DateTime.now().toUtc(),
-      readAt: DateTime.tryParse(_stringValue(json['read_at'])),
+      readAt: DateTime.tryParse(
+        _stringValue(_field(json, 'read_at', 'readAt')),
+      ),
     );
   }
 
@@ -41,9 +48,19 @@ class NotificationItemDto {
       type: type.replaceAll('NOTIFICATION_TYPE_', '').toLowerCase(),
       status: status.replaceAll('NOTIFICATION_STATUS_', '').toLowerCase(),
       createdAt: createdAt,
+      data: data,
       readAt: readAt,
     );
   }
+}
+
+Map<String, String> _stringMap(Object? value) {
+  if (value is! Map) {
+    return const <String, String>{};
+  }
+  return value.map(
+    (key, mapValue) => MapEntry(key.toString(), _stringValue(mapValue)),
+  );
 }
 
 String _stringValue(Object? value, {String fallback = ''}) {
@@ -54,6 +71,13 @@ String _stringValue(Object? value, {String fallback = ''}) {
     return value;
   }
   return value.toString();
+}
+
+Object? _field(Map<String, dynamic> json, String snakeName, String camelName) {
+  if (json.containsKey(snakeName)) {
+    return json[snakeName];
+  }
+  return json[camelName];
 }
 
 String _notificationTypeValue(Object? value) {
@@ -109,6 +133,8 @@ class NotificationsPageDto {
           (json['page'] as Map<String, dynamic>? ??
                   const <String, dynamic>{})['next_page_token']
               as String? ??
+          ((json['page'] as Map<String, dynamic>? ??
+                  const <String, dynamic>{})['nextPageToken'] as String?) ??
           '',
       isStale: isStale,
     );

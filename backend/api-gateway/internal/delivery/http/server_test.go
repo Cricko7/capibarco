@@ -16,12 +16,14 @@ import (
 	"github.com/gin-gonic/gin"
 	animalv1 "github.com/petmatch/petmatch/gen/go/petmatch/animal/v1"
 	commonv1 "github.com/petmatch/petmatch/gen/go/petmatch/common/v1"
+	notificationv1 "github.com/petmatch/petmatch/gen/go/petmatch/notification/v1"
 	userv1 "github.com/petmatch/petmatch/gen/go/petmatch/user/v1"
 	"github.com/petmatch/petmatch/internal/app/gateway"
 	"github.com/petmatch/petmatch/internal/config"
 	kafkaevents "github.com/petmatch/petmatch/internal/infra/kafka"
 	"github.com/petmatch/petmatch/internal/metrics"
 	"github.com/prometheus/client_golang/prometheus"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestDecodeUpdateProfileBodyAcceptsFlatSnakeCaseProfile(t *testing.T) {
@@ -125,6 +127,46 @@ func TestUserProfileJSONUsesSnakeCaseContract(t *testing.T) {
 	}
 	if got := address["city"]; got != "Moscow" {
 		t.Fatalf("address.city = %v, want Moscow", got)
+	}
+}
+
+func TestNotificationJSONUsesSnakeCaseContract(t *testing.T) {
+	createdAt := time.Date(2026, 4, 19, 5, 37, 48, 0, time.UTC)
+	payload := notificationJSON(&notificationv1.Notification{
+		NotificationId:     "notification-1",
+		RecipientProfileId: "owner-1",
+		Type:               notificationv1.NotificationType_NOTIFICATION_TYPE_MATCH_CREATED,
+		Channels: []notificationv1.NotificationChannel{
+			notificationv1.NotificationChannel_NOTIFICATION_CHANNEL_IN_APP,
+		},
+		Title:     "New adoption response",
+		Body:      "Open this notification to start a chat.",
+		Data:      map[string]string{"match_id": "match-1"},
+		Status:    notificationv1.NotificationStatus_NOTIFICATION_STATUS_DELIVERED,
+		CreatedAt: timestamppb.New(createdAt),
+	})
+
+	if got := payload["notification_id"]; got != "notification-1" {
+		t.Fatalf("notification_id = %v, want notification-1", got)
+	}
+	if got := payload["recipient_profile_id"]; got != "owner-1" {
+		t.Fatalf("recipient_profile_id = %v, want owner-1", got)
+	}
+	if got := payload["type"]; got != "NOTIFICATION_TYPE_MATCH_CREATED" {
+		t.Fatalf("type = %v, want NOTIFICATION_TYPE_MATCH_CREATED", got)
+	}
+	if got := payload["status"]; got != "NOTIFICATION_STATUS_DELIVERED" {
+		t.Fatalf("status = %v, want NOTIFICATION_STATUS_DELIVERED", got)
+	}
+	data, ok := payload["data"].(map[string]string)
+	if !ok {
+		t.Fatalf("data payload type = %T, want map[string]string", payload["data"])
+	}
+	if got := data["match_id"]; got != "match-1" {
+		t.Fatalf("data.match_id = %v, want match-1", got)
+	}
+	if got := payload["created_at"]; got != "2026-04-19T05:37:48Z" {
+		t.Fatalf("created_at = %v, want RFC3339 timestamp", got)
 	}
 }
 

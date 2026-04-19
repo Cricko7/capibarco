@@ -6,6 +6,7 @@ class NotificationItemEntity {
     required this.type,
     required this.status,
     required this.createdAt,
+    this.data = const <String, String>{},
     this.readAt,
   });
 
@@ -15,6 +16,7 @@ class NotificationItemEntity {
   final String type;
   final String status;
   final DateTime createdAt;
+  final Map<String, String> data;
   final DateTime? readAt;
 }
 

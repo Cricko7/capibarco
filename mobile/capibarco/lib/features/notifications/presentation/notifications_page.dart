@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../app/localization/app_localizations.dart';
@@ -10,6 +11,9 @@ import '../../../shared/presentation/section_header.dart';
 import '../../../shared/presentation/soft_card.dart';
 import '../../../shared/presentation/stale_banner.dart';
 import '../../../shared/presentation/status_view.dart';
+import '../../auth/presentation/auth_controller.dart';
+import '../../chat/presentation/chat_repository_provider.dart';
+import '../domain/entities/notification_item.dart';
 import 'notifications_controller.dart';
 
 class NotificationsPage extends ConsumerStatefulWidget {
@@ -25,9 +29,6 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
   @override
   void initState() {
     super.initState();
-    Future<void>.microtask(
-      () => ref.read(notificationsControllerProvider.notifier).load(),
-    );
     _refreshTimer = Timer.periodic(const Duration(seconds: 6), (_) {
       if (!mounted) {
         return;
@@ -46,6 +47,28 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final state = ref.watch(notificationsControllerProvider);
+    ref.listen<String>(
+      authControllerProvider.select((auth) => auth.session?.user.id ?? ''),
+      (previous, next) {
+        if (next.isEmpty || previous == next) {
+          return;
+        }
+        Future<void>.microtask(() {
+          if (!mounted) {
+            return;
+          }
+          ref.read(notificationsControllerProvider.notifier).load();
+        });
+      },
+    );
+    if (state.profileId.isNotEmpty && !state.isLoading && !state.hasLoaded) {
+      Future<void>.microtask(() {
+        if (!mounted) {
+          return;
+        }
+        ref.read(notificationsControllerProvider.notifier).load();
+      });
+    }
     final dateFormat = DateFormat.yMMMd(
       Localizations.localeOf(context).languageCode,
     ).add_Hm();
@@ -59,8 +82,9 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
             children: <Widget>[
               SectionHeader(
                 title: l10n.notifications,
-                subtitle:
-                    'Inbox from notification-service and mark-read gateway commands.',
+                subtitle: state.items.isEmpty
+                    ? 'Adoption responses and chat updates arrive here.'
+                    : '${state.items.length} update${state.items.length == 1 ? '' : 's'} ready.',
               ),
               if (state.isStale) ...<Widget>[
                 const SizedBox(height: 16),
@@ -104,6 +128,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                               ),
                               if (item.readAt == null)
                                 FilledButton.tonal(
+                                  style: _notificationActionButtonStyle,
                                   onPressed: () => ref
                                       .read(
                                         notificationsControllerProvider
@@ -116,6 +141,15 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                           ),
                           const SizedBox(height: 8),
                           Text(item.body),
+                          if (_canStartChat(item)) ...[
+                            const SizedBox(height: 12),
+                            FilledButton.icon(
+                              style: _notificationActionButtonStyle,
+                              onPressed: () => _openConversation(item),
+                              icon: const Icon(Icons.chat_bubble_rounded),
+                              label: Text(l10n.startChat),
+                            ),
+                          ],
                           const SizedBox(height: 12),
                           Text(
                             '${item.type} · ${dateFormat.format(item.createdAt.toLocal())}',
@@ -132,4 +166,66 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
       ),
     );
   }
+
+  Future<void> _openConversation(NotificationItemEntity item) async {
+    final l10n = AppLocalizations.of(context);
+    if (item.readAt == null) {
+      try {
+        await ref
+            .read(notificationsControllerProvider.notifier)
+            .markAsRead(item);
+      } catch (_) {
+        // Opening the chat is more important than read-state sync here.
+      }
+    }
+    if (!mounted) {
+      return;
+    }
+    final existingConversationId = item.data['conversation_id'] ?? '';
+    if (existingConversationId.isNotEmpty) {
+      context.go('/chat/$existingConversationId?return_to=/notifications');
+      return;
+    }
+
+    final targetProfileId = item.data['adopter_profile_id'] ?? '';
+    if (targetProfileId.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.chatUnavailable)));
+      return;
+    }
+
+    try {
+      final conversation = await ref
+          .read(chatRepositoryProvider)
+          .createConversation(
+            targetProfileId: targetProfileId,
+            animalId: item.data['animal_id'] ?? '',
+            matchId: item.data['match_id'] ?? '',
+            idempotencyKey: 'notification-${item.id}-chat',
+          );
+      if (!mounted) {
+        return;
+      }
+      context.go('/chat/${conversation.id}?return_to=/notifications');
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.chatUnavailable)));
+    }
+  }
+
+  bool _canStartChat(NotificationItemEntity item) {
+    final conversationId = item.data['conversation_id'] ?? '';
+    final adopterProfileId = item.data['adopter_profile_id'] ?? '';
+    return conversationId.isNotEmpty || adopterProfileId.isNotEmpty;
+  }
 }
+
+const _notificationActionButtonStyle = ButtonStyle(
+  minimumSize: WidgetStatePropertyAll<Size>(Size(0, 46)),
+  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+);

@@ -9,6 +9,7 @@ import '../../features/auth/presentation/login_page.dart';
 import '../../features/auth/presentation/register_page.dart';
 import '../../features/auth/presentation/splash_page.dart';
 import '../../features/chat/presentation/chat_page.dart';
+import '../../features/chat/presentation/chats_page.dart';
 import '../../features/discovery/presentation/discovery_page.dart';
 import '../../features/feed/presentation/feed_page.dart';
 import '../../features/notifications/presentation/notifications_page.dart';
@@ -90,6 +91,14 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: <RouteBase>[
               GoRoute(
+                path: '/chats',
+                builder: (context, state) => const ChatsPage(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: <RouteBase>[
+              GoRoute(
                 path: '/profile',
                 builder: (context, state) => const ProfilePage(),
                 routes: <RouteBase>[
@@ -153,6 +162,7 @@ class MainShell extends StatelessWidget {
             icon: Icon(Icons.notifications_rounded),
             label: 'Alerts',
           ),
+          NavigationDestination(icon: Icon(Icons.forum_rounded), label: 'Chats'),
           NavigationDestination(
             icon: Icon(Icons.person_rounded),
             label: 'Profile',

@@ -662,7 +662,17 @@ func (s *Server) listNotifications(c *gin.Context) {
 		problem.Abort(c, err)
 		return
 	}
-	writeProto(c, http.StatusOK, out)
+	if s.logger != nil {
+		principal, _ := gateway.PrincipalFromContext(c.Request.Context())
+		s.logger.InfoContext(
+			c.Request.Context(),
+			"notifications listed",
+			"actor_id", principal.ActorID,
+			"count", len(out.GetNotifications()),
+			"next_page_token", out.GetPage().GetNextPageToken(),
+		)
+	}
+	writeListNotificationsResponse(c, http.StatusOK, out)
 }
 
 func (s *Server) markNotificationRead(c *gin.Context) {
@@ -947,6 +957,48 @@ func writeListReviewsResponse(c *gin.Context, status int, out *userv1.ListReview
 		"reviews": items,
 		"page":    pageResponseJSON(out.Page),
 	})
+}
+
+func writeListNotificationsResponse(c *gin.Context, status int, out *notificationv1.ListNotificationsResponse) {
+	items := make([]gin.H, 0, len(out.GetNotifications()))
+	for _, notification := range out.GetNotifications() {
+		items = append(items, notificationJSON(notification))
+	}
+	c.JSON(status, gin.H{
+		"notifications": items,
+		"page":          pageResponseJSON(out.GetPage()),
+	})
+}
+
+func notificationJSON(notification *notificationv1.Notification) gin.H {
+	if notification == nil {
+		return gin.H{}
+	}
+	channels := make([]string, 0, len(notification.GetChannels()))
+	for _, channel := range notification.GetChannels() {
+		channels = append(channels, channel.String())
+	}
+	data := map[string]string{}
+	for key, value := range notification.GetData() {
+		data[key] = value
+	}
+	payload := gin.H{
+		"notification_id":      notification.GetNotificationId(),
+		"recipient_profile_id": notification.GetRecipientProfileId(),
+		"type":                 notification.GetType().String(),
+		"channels":             channels,
+		"title":                notification.GetTitle(),
+		"body":                 notification.GetBody(),
+		"data":                 data,
+		"status":               notification.GetStatus().String(),
+	}
+	if notification.GetCreatedAt() != nil {
+		payload["created_at"] = notification.GetCreatedAt().AsTime().UTC().Format(time.RFC3339Nano)
+	}
+	if notification.GetReadAt() != nil {
+		payload["read_at"] = notification.GetReadAt().AsTime().UTC().Format(time.RFC3339Nano)
+	}
+	return payload
 }
 
 func writeReputationEnvelope(c *gin.Context, status int, reputation *userv1.ReputationSummary) {

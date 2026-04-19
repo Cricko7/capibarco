@@ -314,7 +314,7 @@ func (s *Service) SwipeAnimal(ctx context.Context, input SwipeAnimalInput) (Swip
 	return SwipeAnimalOutput{Swipe: out.Swipe, Match: out.Match, ConversationID: out.ConversationId}, nil
 }
 
-// CreateConversation opens or returns an idempotent direct chat.
+// CreateConversation opens or returns an idempotent chat.
 func (s *Service) CreateConversation(ctx context.Context, input CreateConversationInput) (*chatv1.CreateConversationResponse, error) {
 	principal, err := requiredPrincipal(ctx)
 	if err != nil {
@@ -329,11 +329,17 @@ func (s *Service) CreateConversation(ctx context.Context, input CreateConversati
 	if input.TargetProfileID == principal.ActorID {
 		return nil, fmt.Errorf("%w: cannot create conversation with self", ErrInvalidInput)
 	}
+	adopterProfileID := principal.ActorID
+	ownerProfileID := input.TargetProfileID
+	if input.MatchID != "" || input.AnimalID != "" {
+		adopterProfileID = input.TargetProfileID
+		ownerProfileID = principal.ActorID
+	}
 	return s.deps.Chat.CreateConversation(ctx, &chatv1.CreateConversationRequest{
 		MatchId:          input.MatchID,
 		AnimalId:         input.AnimalID,
-		AdopterProfileId: principal.ActorID,
-		OwnerProfileId:   input.TargetProfileID,
+		AdopterProfileId: adopterProfileID,
+		OwnerProfileId:   ownerProfileID,
 		IdempotencyKey:   input.IdempotencyKey,
 	})
 }

@@ -179,8 +179,8 @@ func (s *Service) HandleMatchCreated(ctx context.Context, event *matchingv1.Matc
 		RecipientProfileID: match.GetOwnerProfileId(),
 		Type:               domain.TypeMatchCreated,
 		Channels:           []domain.Channel{domain.ChannelPush, domain.ChannelInApp},
-		Title:              "New adoption match",
-		Body:               "A user right-swiped one of your animals and a chat is ready.",
+		Title:              "New adoption response",
+		Body:               "A user responded to one of your animals. Open this notification to start a chat.",
 		Data: map[string]string{
 			"match_id":           match.GetMatchId(),
 			"animal_id":          match.GetAnimalId(),

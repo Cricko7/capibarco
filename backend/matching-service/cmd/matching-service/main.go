@@ -17,7 +17,6 @@ import (
 	"github.com/petmatch/petmatch/internal/config"
 	deliverygrpc "github.com/petmatch/petmatch/internal/delivery/grpc"
 	deliveryhttp "github.com/petmatch/petmatch/internal/delivery/http"
-	"github.com/petmatch/petmatch/internal/infra/chatgrpc"
 	"github.com/petmatch/petmatch/internal/infra/kafka"
 	"github.com/petmatch/petmatch/internal/infra/postgres"
 	"github.com/petmatch/petmatch/internal/metrics"
@@ -55,17 +54,8 @@ func run() error {
 
 	clock := app.SystemClock{}
 	store := postgres.NewStore(pool, clock)
-	chatClient, err := chatgrpc.Dial(ctx, cfg.Chat.Address, cfg.Chat.Timeout, cfg.Chat.Retries)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err := chatClient.Close(); err != nil {
-			logger.Warn("close chat client", "error", err)
-		}
-	}()
 
-	service := app.NewService(store, chatClient, clock)
+	service := app.NewService(store, nil, clock)
 	serviceMetrics := metrics.New(prometheus.DefaultRegisterer)
 
 	grpcListener, err := net.Listen("tcp", cfg.GRPC.Addr)

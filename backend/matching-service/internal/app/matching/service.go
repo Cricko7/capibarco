@@ -23,7 +23,7 @@ func NewService(store Store, chat ChatClient, clock Clock) *Service {
 	return &Service{store: store, chat: chat, clock: clock}
 }
 
-// RecordSwipe records a swipe and requests chat creation for new right-swipe matches.
+// RecordSwipe records a swipe and creates a match notification event for new right swipes.
 func (s *Service) RecordSwipe(ctx context.Context, cmd RecordSwipeCommand) (RecordSwipeResult, error) {
 	if s == nil || s.store == nil {
 		return RecordSwipeResult{}, fmt.Errorf("%w: matching store is not configured", domain.ErrInvalidArgument)
@@ -44,29 +44,6 @@ func (s *Service) RecordSwipe(ctx context.Context, cmd RecordSwipeCommand) (Reco
 		result.ConversationID = result.Match.ConversationID
 		return result, nil
 	}
-	if !result.CreatedMatch || result.Idempotent || s.chat == nil {
-		return result, nil
-	}
-
-	chatResult, err := s.chat.CreateConversation(ctx, *result.Match, cmd.IdempotencyKey)
-	if err != nil {
-		return result, nil
-	}
-	if strings.TrimSpace(chatResult.ConversationID) == "" {
-		return result, nil
-	}
-
-	updated, err := result.Match.WithConversation(chatResult.ConversationID, s.clock.Now())
-	if err != nil {
-		return result, fmt.Errorf("attach conversation to match: %w", err)
-	}
-	if err := s.store.UpdateMatchConversation(ctx, updated.ID, updated.ConversationID); err != nil {
-		return result, fmt.Errorf("persist match conversation: %w", err)
-	}
-
-	result.Match = &updated
-	result.ChatCreated = chatResult.Created
-	result.ConversationID = updated.ConversationID
 	return result, nil
 }
 

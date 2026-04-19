@@ -9,8 +9,14 @@ class AppLoggingInterceptor extends Interceptor {
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
     if (enabled && kDebugMode) {
+      final headers = Map<String, dynamic>.from(options.headers);
+      for (final key in headers.keys.toList()) {
+        if (key.toLowerCase() == 'authorization') {
+          headers[key] = 'Bearer ***';
+        }
+      }
       debugPrint(
-        '[HTTP] ${options.method} ${options.uri} headers=${options.headers}',
+        '[HTTP] ${options.method} ${options.uri} headers=$headers',
       );
     }
     handler.next(options);

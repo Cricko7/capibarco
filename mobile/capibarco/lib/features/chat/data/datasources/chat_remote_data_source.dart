@@ -19,6 +19,9 @@ class ChatRemoteDataSource {
     matchId: matchId,
   );
 
+  Future<List<ChatConversationDto>> listConversations() =>
+      _apiClient.listConversations();
+
   Future<List<ChatMessageDto>> listMessages(String conversationId) =>
       _apiClient.listMessages(conversationId);
 

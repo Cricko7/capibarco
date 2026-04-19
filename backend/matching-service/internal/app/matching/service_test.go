@@ -2,7 +2,6 @@ package matching_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -11,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestServiceRecordSwipeCallsChatForNewRightSwipe(t *testing.T) {
+func TestServiceRecordSwipeCreatesMatchWithoutOpeningChat(t *testing.T) {
 	ctx := context.Background()
 	clock := fixedClock{now: time.Date(2026, 4, 17, 12, 0, 0, 0, time.UTC)}
 	store := &fakeStore{
@@ -48,13 +47,11 @@ func TestServiceRecordSwipeCallsChatForNewRightSwipe(t *testing.T) {
 	})
 
 	require.NoError(t, err)
-	require.True(t, result.ChatCreated)
-	require.Equal(t, "conversation-1", result.ConversationID)
-	require.Equal(t, "conversation-1", result.Match.ConversationID)
-	require.Len(t, chat.calls, 1)
-	require.Equal(t, "match-1", chat.calls[0].match.ID)
-	require.Equal(t, "idem-1", chat.calls[0].idempotencyKey)
-	require.Equal(t, "conversation-1", store.updatedConversationID)
+	require.False(t, result.ChatCreated)
+	require.Empty(t, result.ConversationID)
+	require.Empty(t, result.Match.ConversationID)
+	require.Empty(t, chat.calls)
+	require.Empty(t, store.updatedConversationID)
 }
 
 func TestServiceRecordSwipeDoesNotCallChatForLeftSwipe(t *testing.T) {
@@ -130,49 +127,6 @@ func TestServiceRecordSwipeReturnsIdempotentResultWithoutCallingChatAgain(t *tes
 	require.True(t, result.ChatCreated)
 	require.Equal(t, "conversation-1", result.ConversationID)
 	require.Empty(t, chat.calls)
-}
-
-func TestServiceRecordSwipeKeepsMatchWhenChatFails(t *testing.T) {
-	ctx := context.Background()
-	clock := fixedClock{now: time.Date(2026, 4, 17, 12, 0, 0, 0, time.UTC)}
-	store := &fakeStore{
-		recordResult: app.RecordSwipeResult{
-			Swipe: matching.Swipe{
-				ID:             "swipe-1",
-				ActorID:        "adopter-1",
-				AnimalID:       "animal-1",
-				OwnerProfileID: "owner-1",
-				Direction:      matching.SwipeDirectionRight,
-				SwipedAt:       clock.now,
-			},
-			Match: &matching.Match{
-				ID:               "match-1",
-				AnimalID:         "animal-1",
-				AdopterProfileID: "adopter-1",
-				OwnerProfileID:   "owner-1",
-				Status:           matching.MatchStatusActive,
-				CreatedAt:        clock.now,
-				UpdatedAt:        clock.now,
-			},
-			CreatedMatch: true,
-		},
-	}
-	chat := &fakeChatClient{err: errors.New("chat unavailable")}
-	service := app.NewService(store, chat, clock)
-
-	result, err := service.RecordSwipe(ctx, app.RecordSwipeCommand{
-		ActorID:        "adopter-1",
-		AnimalID:       "animal-1",
-		OwnerProfileID: "owner-1",
-		Direction:      matching.SwipeDirectionRight,
-		IdempotencyKey: "idem-1",
-	})
-
-	require.NoError(t, err)
-	require.False(t, result.ChatCreated)
-	require.Empty(t, result.ConversationID)
-	require.NotNil(t, result.Match)
-	require.Len(t, chat.calls, 1)
 }
 
 type fixedClock struct {

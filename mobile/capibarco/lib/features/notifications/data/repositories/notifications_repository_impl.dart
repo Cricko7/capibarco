@@ -19,8 +19,10 @@ class NotificationsRepositoryImpl {
   final JsonCacheStore _cacheStore;
   final ErrorMapper _errorMapper;
 
-  Future<NotificationsPageEntity> listNotifications() async {
-    const cacheKey = 'notifications';
+  Future<NotificationsPageEntity> listNotifications({
+    required String cacheScope,
+  }) async {
+    final cacheKey = 'notifications:$cacheScope';
     try {
       final remote = await _remoteDataSource.listNotifications();
       await _cacheStore.write(
@@ -34,6 +36,7 @@ class NotificationsRepositoryImpl {
                   'body': item.body,
                   'type': item.type,
                   'status': item.status,
+                  'data': item.data,
                   'created_at': item.createdAt.toIso8601String(),
                   'read_at': item.readAt?.toIso8601String(),
                 },

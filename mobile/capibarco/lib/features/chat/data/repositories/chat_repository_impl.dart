@@ -44,6 +44,15 @@ class ChatRepositoryImpl {
     }
   }
 
+  Future<List<ChatConversationEntity>> listConversations() async {
+    try {
+      final conversations = await _remoteDataSource.listConversations();
+      return conversations.map((item) => item.toDomain()).toList();
+    } catch (error) {
+      throw _errorMapper.map(error);
+    }
+  }
+
   Future<ChatMessageEntity> sendMessage({
     required String conversationId,
     required String text,

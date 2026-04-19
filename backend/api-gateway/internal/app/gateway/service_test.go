@@ -191,6 +191,32 @@ func TestServiceCreateConversationUsesCurrentPrincipal(t *testing.T) {
 	require.Empty(t, chatClient.lastCreateConversation.AnimalId)
 }
 
+func TestServiceCreateConversationFromMatchUsesCurrentPrincipalAsOwner(t *testing.T) {
+	chatClient := &fakeChat{}
+	svc := NewService(Dependencies{
+		Auth:          &fakeAuth{},
+		Chat:          chatClient,
+		GuestSessions: domain.NewGuestSessionCodec([]byte("secret"), time.Hour),
+		Clock:         fixedClock{},
+		Defaults:      Defaults{TenantID: "petmatch", MaxPageSize: 10},
+	})
+	ctx := WithPrincipal(context.Background(), Principal{ActorID: "profile-owner", TenantID: "tenant-1"})
+
+	_, err := svc.CreateConversation(ctx, CreateConversationInput{
+		TargetProfileID: "profile-adopter",
+		MatchID:         "match-1",
+		AnimalID:        "animal-1",
+		IdempotencyKey:  "notification-1-chat",
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, chatClient.lastCreateConversation)
+	require.Equal(t, "profile-adopter", chatClient.lastCreateConversation.AdopterProfileId)
+	require.Equal(t, "profile-owner", chatClient.lastCreateConversation.OwnerProfileId)
+	require.Equal(t, "match-1", chatClient.lastCreateConversation.MatchId)
+	require.Equal(t, "animal-1", chatClient.lastCreateConversation.AnimalId)
+}
+
 func TestServicePublishAnimalUsesRequestedID(t *testing.T) {
 	animalClient := &fakeAnimal{}
 	svc := NewService(Dependencies{

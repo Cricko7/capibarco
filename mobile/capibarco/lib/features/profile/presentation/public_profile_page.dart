@@ -281,7 +281,7 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
                               Text('${review.rating}/5'),
                               const Spacer(),
                               Text(
-                                review.authorProfileId,
+                                'Reviewer',
                                 style: Theme.of(context).textTheme.labelMedium,
                               ),
                             ],

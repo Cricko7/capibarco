@@ -33,6 +33,7 @@ class AppLocalizations {
       'feed': 'Feed',
       'discover': 'Discover',
       'notifications': 'Notifications',
+      'chats': 'Chats',
       'profile': 'Profile',
       'retry': 'Retry',
       'save': 'Save changes',
@@ -45,6 +46,7 @@ class AppLocalizations {
       'emptyFeed': 'No animals available right now.',
       'emptyProfiles': 'No matching profiles yet.',
       'emptyNotifications': 'No notifications yet.',
+      'emptyChats': 'No chats yet.',
       'loading': 'Loading...',
       'pass': 'Pass',
       'like': 'Like',
@@ -115,6 +117,7 @@ class AppLocalizations {
       'feed': 'Feed',
       'discover': 'Discover',
       'notifications': 'Notifications',
+      'chats': 'Chats',
       'profile': 'Profile',
       'retry': 'Retry',
       'save': 'Save changes',
@@ -127,6 +130,7 @@ class AppLocalizations {
       'emptyFeed': 'No animals available right now.',
       'emptyProfiles': 'No matching profiles yet.',
       'emptyNotifications': 'No notifications yet.',
+      'emptyChats': 'No chats yet.',
       'loading': 'Loading...',
       'pass': 'Pass',
       'like': 'Like',
@@ -202,6 +206,7 @@ class AppLocalizations {
   String get feed => _text('feed');
   String get discover => _text('discover');
   String get notifications => _text('notifications');
+  String get chats => _text('chats');
   String get profile => _text('profile');
   String get retry => _text('retry');
   String get save => _text('save');
@@ -214,6 +219,7 @@ class AppLocalizations {
   String get emptyFeed => _text('emptyFeed');
   String get emptyProfiles => _text('emptyProfiles');
   String get emptyNotifications => _text('emptyNotifications');
+  String get emptyChats => _text('emptyChats');
   String get loading => _text('loading');
   String get pass => _text('pass');
   String get like => _text('like');
