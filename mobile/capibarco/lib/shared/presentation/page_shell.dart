@@ -21,39 +21,44 @@ class PageShell extends StatelessWidget {
           ],
         ),
       ),
-      child: Stack(
-        children: <Widget>[
-          Positioned(
-            top: -40,
-            right: -10,
-            child: _GlowCircle(
-              color: colorScheme.secondaryContainer.withValues(alpha: 0.45),
-              size: 180,
+      child: LayoutBuilder(
+        builder: (context, constraints) => Stack(
+          children: <Widget>[
+            Positioned(
+              top: -40,
+              right: -10,
+              child: _GlowCircle(
+                color: colorScheme.secondaryContainer.withValues(alpha: 0.45),
+                size: 180,
+              ),
             ),
-          ),
-          Positioned(
-            bottom: -50,
-            left: -20,
-            child: _GlowCircle(
-              color: colorScheme.primaryContainer.withValues(alpha: 0.6),
-              size: 220,
+            Positioned(
+              bottom: -50,
+              left: -20,
+              child: _GlowCircle(
+                color: colorScheme.primaryContainer.withValues(alpha: 0.6),
+                size: 220,
+              ),
             ),
-          ),
-          SafeArea(
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 860),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 16,
+            SafeArea(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: 860,
+                    minHeight: constraints.maxHeight,
                   ),
-                  child: child,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 16,
+                    ),
+                    child: child,
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

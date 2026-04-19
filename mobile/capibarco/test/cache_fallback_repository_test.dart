@@ -190,7 +190,7 @@ void main() {
         );
 
         await expectLater(
-          repository.listNotifications(),
+          repository.listNotifications(cacheScope: 'profile-1'),
           throwsA(
             isA<AppException>().having(
               (error) => error.statusCode,

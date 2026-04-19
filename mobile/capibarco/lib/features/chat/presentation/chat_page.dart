@@ -30,6 +30,7 @@ class ChatPage extends ConsumerStatefulWidget {
 
 class _ChatPageState extends ConsumerState<ChatPage> {
   final _messageController = TextEditingController();
+  final _messagesScrollController = ScrollController();
   List<ChatMessageEntity> _messages = const <ChatMessageEntity>[];
   bool _isLoading = true;
   bool _isSending = false;
@@ -44,6 +45,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   @override
   void dispose() {
     _messageController.dispose();
+    _messagesScrollController.dispose();
     super.dispose();
   }
 
@@ -63,6 +65,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         _messages = messages;
         _isLoading = false;
       });
+      _scrollToLatest(jumpToEnd: true);
     } catch (error) {
       if (!mounted) {
         return;
@@ -93,6 +96,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         _messages = <ChatMessageEntity>[..._messages, message];
         _isSending = false;
       });
+      _scrollToLatest();
     } catch (error) {
       if (!mounted) {
         return;
@@ -102,6 +106,81 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         context,
       ).showSnackBar(SnackBar(content: Text(error.toString())));
     }
+  }
+
+  void _scrollToLatest({bool jumpToEnd = false}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_messagesScrollController.hasClients) {
+        return;
+      }
+
+      final maxScrollExtent =
+          _messagesScrollController.position.maxScrollExtent;
+      if (jumpToEnd) {
+        _messagesScrollController.jumpTo(maxScrollExtent);
+        return;
+      }
+
+      _messagesScrollController.animateTo(
+        maxScrollExtent,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
+  Widget _buildComposer(AppLocalizations l10n) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 560;
+        final composerField = TextField(
+          controller: _messageController,
+          minLines: 1,
+          maxLines: 4,
+          textInputAction: TextInputAction.send,
+          onSubmitted: (_) => _sendMessage(),
+          decoration: InputDecoration(
+            hintText: l10n.messageHint,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 18,
+              vertical: 16,
+            ),
+          ),
+        );
+        final composerButton = FilledButton.icon(
+          onPressed: _isSending ? null : _sendMessage,
+          icon: _isSending
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.send_rounded),
+          label: Text(l10n.send),
+        );
+
+        return SoftCard(
+          padding: const EdgeInsets.all(12),
+          child: isCompact
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    composerField,
+                    const SizedBox(height: 12),
+                    composerButton,
+                  ],
+                )
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: <Widget>[
+                    Expanded(child: composerField),
+                    const SizedBox(width: 12),
+                    composerButton,
+                  ],
+                ),
+        );
+      },
+    );
   }
 
   @override
@@ -152,6 +231,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                       ),
                     )
                   : ListView.separated(
+                      controller: _messagesScrollController,
                       itemCount: _messages.length,
                       separatorBuilder: (_, _) => const SizedBox(height: 10),
                       itemBuilder: (context, index) {
@@ -225,35 +305,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                     ),
             ),
             const SizedBox(height: 16),
-            SoftCard(
-              child: Row(
-                children: <Widget>[
-                  Expanded(
-                    child: TextField(
-                      controller: _messageController,
-                      minLines: 1,
-                      maxLines: 4,
-                      decoration: InputDecoration(
-                        hintText: l10n.messageHint,
-                        border: InputBorder.none,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  FilledButton.icon(
-                    onPressed: _isSending ? null : _sendMessage,
-                    icon: _isSending
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.send_rounded),
-                    label: Text(l10n.send),
-                  ),
-                ],
-              ),
-            ),
+            _buildComposer(l10n),
           ],
         ),
       ),
