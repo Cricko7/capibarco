@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../bootstrap/providers.dart';
 import '../../../core/config/environment.dart';
 import '../../../core/network/network_providers.dart';
 import '../../../core/network/rest_service_client.dart';
@@ -73,7 +74,9 @@ class ChatsController extends Notifier<ChatsState> {
     }
 
     final counterpartIds = conversations
-        .map((conversation) => conversation.counterpartProfileId(currentProfileId))
+        .map(
+          (conversation) => conversation.counterpartProfileId(currentProfileId),
+        )
         .where((id) => id.isNotEmpty)
         .toSet()
         .toList();
