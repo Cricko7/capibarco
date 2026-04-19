@@ -68,8 +68,6 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
                     final counterpartId = conversation.counterpartProfileId(
                       currentProfileId,
                     );
-                    final counterpartName =
-                        state.counterpartNames[counterpartId] ?? '';
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 16),
                       child: SoftCard(
@@ -79,9 +77,9 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
                             child: Icon(Icons.chat_bubble_outline_rounded),
                           ),
                           title: Text(
-                            counterpartName.isNotEmpty
-                                ? counterpartName
-                                : 'Пользователь',
+                            counterpartId.isEmpty
+                                ? 'Chat with user'
+                                : 'Chat with $counterpartId',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
